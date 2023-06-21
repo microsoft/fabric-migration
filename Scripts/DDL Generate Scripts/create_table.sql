@@ -207,12 +207,14 @@ where NewConstraintDef is not null
 
 --select * from #tbl_FinalScript t
 
-
 --,cast(t.type_desc as varchar(10))
 
 -- --Next Steps:
 --     DONE - Build the create TABLE statements for farbic
 --     DONE - create the CETAS statements per table to export data
+--     - Build script to create the schemas in Fabric
+    --     - Build script to extract views, procedures and functions
+--     - Generate COPY INTO statements to load to Fabric
 --     - create a process to deploy the tables in fabric
 --     - Create shortcut from OneLake to Gen2 DataLake
 --     - create a process to load files to OL and Load tables?
