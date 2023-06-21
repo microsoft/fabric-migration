@@ -168,7 +168,7 @@ select SchName
                        THEN CONCAT('ALTER TABLE ',SchName,'.',tblName,' ADD CONSTRAINT ConstrPK',tblName,' PRIMARY KEY NONCLUSTERED(',colname,') NOT ENFORCED')
                   WHEN type_desc = 'DEFAULT_CONSTRAINT' 
                        THEN CONCAT('ALTER TABLE ',SchName,'.',tblName,' ADD DEFAULT ',replace(replace(definition,'))',')'),'((','('),' FOR ',colname)
-                        --CONCAT(colname,' ',NewTypeDef,' ',colnullable,' /*DEFAULT',definition,'*/')
+                       --CONCAT(colname,' ',NewTypeDef,' ',colnullable,' /*DEFAULT',definition,'*/')
              end NewConstraintDef
 from(
 SELECT  top 1000000000 SchName
@@ -211,7 +211,8 @@ where NewConstraintDef is not null
 --,cast(t.type_desc as varchar(10))
 
 -- --Next Steps:
---     - Build the create TABLE statements for farbic
---     - create the CETAS statements per table to export data
+--     DONE - Build the create TABLE statements for farbic
+--     DONE - create the CETAS statements per table to export data
 --     - create a process to deploy the tables in fabric
+--     - Create shortcut from OneLake to Gen2 DataLake
 --     - create a process to load files to OL and Load tables?
