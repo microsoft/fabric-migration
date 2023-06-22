@@ -1,35 +1,35 @@
-CREATE PROCEDURE dbo.create_temp_table_view_to_extract_data
+
+CREATE PROCEDURE dbo.generate_data_extract_and_data_load_statements 
+@storage_access_token VARCHAR(1024),
+@external_data_source_base_location VARCHAR(1024)
 /*
 
     Name: dbo.create_temp_table_view_to_extract_data
     Description: This stored procedure creates a temporary table that stores all tables and its columns.
     
     Sample Execution: 
-        EXEC dbo.create_temp_table_view_to_extract_data
+        EXEC dbo.generate_data_extract_and_data_load_statements @storage_access_token = ''
+        , @external_data_source_base_location = ''
 
 */
 AS
 
-IF (object_id('dbo.table_info_for_data_extract','U') IS NOT NULL) 
-    DROP TABLE dbo.table_info_for_data_extract
+IF (object_id('dbo.table_info_for_data_extract_and_data_load','U') IS NOT NULL) 
+    DROP TABLE dbo.table_info_for_data_extract_and_data_load
 
-create table dbo.table_info_for_data_extract with(distribution=round_robin,heap) as
+create table dbo.table_info_for_data_extract_and_data_load with(distribution=round_robin,heap) as
 select 
-    tbl.object_id,sc.name SchName
+   sc.name SchName
     , tbl.name tblName
-    , c.column_id colid
-    , c.name colname
-    , t.name as coltype
-    , c.max_length colmaxlength
-    , c.precision colprecision
-    , c.scale colscale
-    , c.is_nullable colnullable
-    , c.collation_name
-from sys.columns c
-join sys.tables tbl on tbl.object_id=c.object_id
-join sys.pdw_column_distribution_properties d on c.object_id = d.object_id and c.column_id = d.column_id
-join sys.types t on t.user_type_id = c.user_type_id
-inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
-left join sys.default_constraints dc on c.default_object_id =dc.object_id and c.object_id =dc.parent_object_id;
+    , 'IF (object_id('''+ sc.name + '.migration_' + tbl.name + ''',''U'') IS NOT NULL) DROP TABLE ['+ sc.name + '].[migration_' + tbl.name +'];' + CHAR(13)+CHAR(10) + 'CREATE EXTERNAL TABLE [' + sc.name + '].[migration_' + tbl.name + 
+        '] WITH (LOCATION = ''/'+sc.name+'/'+tbl.name+'/''' + ',' + 
+        ' DATA_SOURCE = fabric_data_migration_ext_data_source,' +
+        ' FILE_FORMAT = fabric_data_migration_ext_file_format)' +
+        ' AS SELECT * FROM [' + + sc.name + '].[' + tbl.name + '];' AS data_extract_statement
+    , 'COPY INTO [' + + sc.name + '].[' + tbl.name + '] FROM ''' + @external_data_source_base_location + ''+sc.name+'/'+tbl.name+'/''' +
+        ' WITH ( FILE_TYPE = ''PARQUET'', CREDENTIAL=(IDENTITY= ''Storage Account Key'', SECRET = '''+ @storage_access_token + '''))' AS data_load_statement
 
-SELECT * From dbo.table_info_for_data_extract;
+from sys.tables tbl
+inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
+
+SELECT * From dbo.table_info_for_data_extract_and_data_load;
