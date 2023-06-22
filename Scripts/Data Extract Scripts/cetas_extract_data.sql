@@ -1,11 +1,13 @@
 CREATE PROCEDURE dbo.sp_cetas_extract_script
-@external_data_source_base_location VARCHAR(1024)
+@adls_gen2_location VARCHAR(1024),
+@storage_access_token VARCHAR(1024)
 /*
 
     Name: dbo.sp_cetas_extract_script
     Description: This stored procedure uses system tables to generate CETAS script for extracting data to a data lake store
-    Parameters: None
-
+    Parameters: 
+        @adls_gen2_location - Base storage location of data stored in adls gen2 storage
+        @storage_access_token - Storage Account access key
 */
 AS
 
@@ -16,20 +18,12 @@ EXEC dbo.create_master_key_and_scoped_credential;
 EXEC dbo.create_external_file_format;
 
 -- Create External Data Source
-EXEC dbo.sp_create_external_data_source @adls_base_location = @external_data_source_base_location,
+EXEC dbo.sp_create_external_data_source @adls_base_location = @adls_gen2_location,
         @credential_name ='fabric_migration_credential',@external_data_source_name='fabric_data_migration_ext_data_source';
 
 -- Create a temporary table to hold the table data in dbo.table_info_for_data_extract;
 EXEC dbo.create_temp_table_view_to_extract_data;
 
-SELECT 'IF (object_id('''+ SchName + '.migration_' + tblName + ''',''U'') IS NOT NULL) DROP TABLE '+ SchName + '.migration_' + tblName +';' + CHAR(13)+CHAR(10) + 'CREATE EXTERNAL TABLE ' + SchName + '.migration_' + tblName + 
-        ' WITH (LOCATION = ''/'+SchName+'/'+tblName+'/''' + ',' + 
-        ' DATA_SOURCE = fabric_data_migration_ext_data_source,' +
-        ' FILE_FORMAT = fabric_data_migration_ext_file_format)' +
-        ' AS SELECT * FROM ' + + SchName + '.' + tblName + ';'
-        FROM dbo.table_info_for_data_extract;
-
-
-
-
-select * from dbo.table_info_for_data_extract;
+-- Generate data extract and data load statements
+EXEC dbo.create_temp_table_view_to_extract_data @storage_access_token = @storage_access_token
+        , @external_data_source_base_location = @adls_gen2_location
