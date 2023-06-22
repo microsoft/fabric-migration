@@ -218,3 +218,4 @@ where NewConstraintDef is not null
 --     - create a process to deploy the tables in fabric
 --     - Create shortcut from OneLake to Gen2 DataLake
 --     - create a process to load files to OL and Load tables?
+
