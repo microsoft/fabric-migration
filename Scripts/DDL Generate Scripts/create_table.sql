@@ -1,17 +1,22 @@
--- -- declare @tbl as VARCHAR(100)='dbo.magicTable';
-
+IF (object_id(N'SynapseMigration_ExtractAllDDL','P') IS NOT NULL) DROP PROC SynapseMigration_ExtractAllDDL
+GO
+Create PROCEDURE SynapseMigration_ExtractAllDDL as
+BEGIN
+/*
+    Extract Table Definitions
+*/
 IF (object_id('tempdb.dbo.#tbl','U') IS NOT NULL) DROP TABLE #tbl
 create table #tbl with(distribution=round_robin,heap) as
 select tbl.object_id,sc.name SchName, tbl.name tblName , c.column_id colid, c.name colname, t.name as coltype, c.max_length colmaxlength, c.precision colprecision,
     c.scale colscale, c.is_nullable colnullable, c.collation_name
 from sys.columns c
     join sys.tables tbl on tbl.object_id=c.object_id
---    join sys.pdw_column_distribution_properties d on c.object_id = d.object_id and c.column_id = d.column_id
     join sys.types t on t.user_type_id = c.user_type_id
 	inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
-    left join sys.default_constraints dc on c.default_object_id =dc.object_id and c.object_id =dc.parent_object_id
--- where c.object_id = object_id(@tbl)
-;
+    left join sys.default_constraints dc on c.default_object_id =dc.object_id and c.object_id =dc.parent_object_id;
+/*
+    Extract Table Constraints
+*/
 IF (object_id('tempdb.dbo.#tbl_constr','U') IS NOT NULL) DROP TABLE #tbl_constr
 create table #tbl_constr with(distribution=round_robin,heap) as
 SELECT ic.[object_id]
@@ -26,8 +31,7 @@ SELECT ic.[object_id]
   inner join [sys].[key_constraints] kc on kc.parent_object_id=ic.object_id and kc.unique_index_id=ic.index_id
   inner join [sys].[default_constraints] dc on kc.parent_object_id=dc.parent_object_id 
   inner join sys.columns c on c.column_id=ic.column_id and c.object_id=ic.object_id
---   where kc.parent_object_id=object_id(@tbl,'U')
-  union all
+UNION ALL
 SELECT kc.[parent_object_id] object_id
 	  ,kc.[parent_column_id] column_id
       ,kc.[name] kcName
@@ -37,72 +41,70 @@ SELECT kc.[parent_object_id] object_id
 	  ,c.is_nullable
       ,kc.[definition]
   FROM [sys].[default_constraints] kc
-  inner join sys.columns c on c.column_id=kc.parent_column_id and c.object_id=kc.parent_object_id
-    -- where kc.parent_object_id=object_id(@tbl,'U')
-;
--- select * from dbo.#tbl order by tblName,colid
--- select * from dbo.#tbl_constr order by tblName,colid
---  select * from dbo.#tbl_fin order by tblName,colid
+  inner join sys.columns c on c.column_id=kc.parent_column_id and c.object_id=kc.parent_object_id;
 
-IF (object_id('tempdb.dbo.#tbl_fin','U') IS NOT NULL) DROP TABLE #tbl_fin
+/*
+    Join Data Set For type mapping
+*/
+IF (object_id('tempdb.dbo.#tbl_fin','U') IS NOT NULL) DROP TABLE #tbl_fin;
 create table #tbl_fin with(distribution=round_robin,heap) as
 select t.*, tc.type_desc, tc.is_enforced, tc.definition from dbo.#tbl t
-left join dbo.#tbl_constr tc on t.object_id=tc.object_id and t.colid=tc.column_id ;
-
-
+left join dbo.#tbl_constr tc on t.object_id=tc.object_id and t.colid=tc.column_id;
 
 -- /*
--- Category	            Supported data types
+-- Category	               Supported data types
+-- ----------------------- --------------------
 -- Exact numerics          bit
 --                         bigint
 --                         int
 --                         smallint
 --                         decimal
 --                         numeric
--- Approximate numerics	float
+-- Approximate numerics	   float
 --                         real
--- Date and time	        date
+-- Date and time	       date
 --                         datetime2
 --                         time
--- Character strings	    char
+-- Character strings	   char
 --                         varchar
--- Binary strings	        varbinary
+-- Binary strings	       varbinary
 --                         uniqueidentifer
 
 -- Unsupported data type	Alternatives available
--- money/smallmoney	    decimal
+-- ------------------------ ----------------------
+-- money/smallmoney	        decimal
 -- datetime/smalldatetime	datetime2.
 -- nchar/nvarchar	        char and varchar respectively
 -- text/ntext	            varchar.
 -- image	                varbinary.
 
-
 -- Type Mapping
---     bit                 bit
---     bigint              bigint
---     int                 int
---     smallint            smalint
---     decimal             decimal(1..38,1..38)
---     numeric             numeric(p,s)
---     float               float
---     real                real
---     date                date
---     datetime2           datetime2(0..6)
---     time                time(0..6)
---     char                char(1..8000)
---     varchar             varchar(1..8000)
---     varbinary           varbinary
---     binary              varbinary
---     uniqueidentifer     uniqueidentifer
---     money	            decimal(1..38,1..38)
---     smallmoney	        decimal(1..38,1..38)
---     smalldatetime	    datetime2(0..6)
---     datetime	        datetime2(0..6)
---     nchar	            char(1..8000)
---     nvarchar	        varchar(1..8000)
---     text                varchar(1..8000)
---     ntext               varchar(1..8000)
---     image	            varbinary(1..8000)
+-- -----------------------
+-- bit              bit
+-- bigint           bigint
+-- int              int
+-- smallint         smalint
+-- decimal          decimal(1..38,1..38)
+-- numeric          numeric(p,s)
+-- float            float
+-- real             real
+-- date             date
+-- datetime2        datetime2(0..6)
+-- time             time(0..6)
+-- char             char(1..8000)
+-- varchar          varchar(1..8000)
+-- varbinary        varbinary
+-- binary           varbinary
+-- uniqueidentifer  uniqueidentifer
+-- money	        decimal(1..38,1..38)
+-- smallmoney	    decimal(1..38,1..38)
+-- smalldatetime    datetime2(0..6)
+-- datetime	        datetime2(0..6)
+-- nchar	        char(1..8000)
+-- nvarchar	        varchar(1..8000)
+-- text             varchar(1..8000)
+-- ntext            varchar(1..8000)
+-- image	        varbinary(1..8000)
 -- */
 IF (object_id('tempdb.dbo.#tbl_Defs','U') IS NOT NULL) DROP TABLE #tbl_Defs
 create table #tbl_Defs with(distribution=round_robin,heap) as
@@ -143,16 +145,12 @@ SELECT  top 1000000000 SchName
             ,is_enforced
             ,definition
         from #tbl_fin
-        --where tblName='MagicTable'
         order by colid
-) a
+) a;
 
-
---GO
---select * from #tbl_Defs t where t.tblName='MagicTable' order by colid
-
-IF (object_id('tempdb.dbo.#tbl_FinalScript','U') IS NOT NULL) DROP TABLE #tbl_FinalScript
-create table #tbl_FinalScript with(distribution=round_robin,heap) as
+IF (object_id('tempdb.dbo.#tbl_FinalScript','U') IS NOT NULL) DROP TABLE #tbl_FinalScript;
+create table #tbl_FinalScript (SchName nvarchar(200), tblName varchar(200), DDLScript varchar(max)) with(distribution=round_robin,heap);
+INSERT INTO #tbl_FinalScript
 select SchName,tblName,concat('CREATE TABLE ',SchName,'.',tblName,'('
               ,STRING_AGG (CONVERT(NVARCHAR(max),NewColDef),', ')
               ,')') DDLScript
@@ -168,7 +166,6 @@ select SchName
                        THEN CONCAT('ALTER TABLE ',SchName,'.',tblName,' ADD CONSTRAINT ConstrPK',tblName,' PRIMARY KEY NONCLUSTERED(',colname,') NOT ENFORCED')
                   WHEN type_desc = 'DEFAULT_CONSTRAINT' 
                        THEN CONCAT('ALTER TABLE ',SchName,'.',tblName,' ADD DEFAULT ',replace(replace(definition,'))',')'),'((','('),' FOR ',colname)
-                       --CONCAT(colname,' ',NewTypeDef,' ',colnullable,' /*DEFAULT',definition,'*/')
              end NewConstraintDef
 from(
 SELECT  top 1000000000 SchName
@@ -202,13 +199,11 @@ SELECT  top 1000000000 SchName
         order by colid
 ) a
 ) b
-where NewConstraintDef is not null
+where NewConstraintDef is not null;
 
+select * from #tbl_FinalScript t
 
---select * from #tbl_FinalScript t
-
---,cast(t.type_desc as varchar(10))
-
+END
 -- --Next Steps:
 --     DONE - Build the create TABLE statements for farbic
 --     DONE - create the CETAS statements per table to export data
