@@ -1,3 +1,7 @@
+IF object_id('dbo.create_external_file_format') IS NOT NULL
+    DROP PROCEDURE dbo.create_external_file_format
+GO
+
 CREATE PROCEDURE dbo.create_external_file_format
 /*
 

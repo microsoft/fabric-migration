@@ -1,3 +1,7 @@
+IF object_id('dbo.sp_create_external_data_source') IS NOT NULL
+    DROP PROCEDURE dbo.sp_create_external_data_source
+GO
+
 CREATE PROCEDURE dbo.sp_create_external_data_source 
 @adls_base_location VARCHAR(1024),
 @credential_name VARCHAR(100),
@@ -33,7 +37,6 @@ BEGIN TRY
     DECLARE @create_extdatasource_string VARCHAR(8000)
     SET @create_extdatasource_string =     
         'CREATE EXTERNAL DATA SOURCE '+ @external_data_source_name +' WITH (TYPE = hadoop, LOCATION = ' + '''' + @adls_base_location + '''' + ', CREDENTIAL = ' + @credential_name + ');'
-    SELECT @create_extdatasource_string;
     EXEC(@create_extdatasource_string);
     print(@external_data_source_name+ ' is created.');
 

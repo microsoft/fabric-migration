@@ -1,3 +1,7 @@
+IF object_id('dbo.create_master_key_and_scoped_credential') IS NOT NULL
+    DROP PROCEDURE dbo.create_master_key_and_scoped_credential
+GO
+
 CREATE PROCEDURE dbo.create_master_key_and_scoped_credential
 /*
 

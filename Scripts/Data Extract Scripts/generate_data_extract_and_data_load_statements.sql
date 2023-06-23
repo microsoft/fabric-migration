@@ -1,3 +1,6 @@
+IF object_id('dbo.generate_data_extract_and_data_load_statements') IS NOT NULL
+    DROP PROCEDURE dbo.generate_data_extract_and_data_load_statements
+GO
 
 CREATE PROCEDURE dbo.generate_data_extract_and_data_load_statements 
 @storage_access_token VARCHAR(1024),
@@ -14,10 +17,10 @@ CREATE PROCEDURE dbo.generate_data_extract_and_data_load_statements
 */
 AS
 
-IF (object_id('dbo.table_info_for_data_extract_and_data_load','U') IS NOT NULL) 
+IF (object_id('tempdb.dbo.#table_info_for_data_extract_and_data_load','U') IS NOT NULL) 
     DROP TABLE dbo.table_info_for_data_extract_and_data_load
 
-create table dbo.table_info_for_data_extract_and_data_load with(distribution=round_robin,heap) as
+create table #table_info_for_data_extract_and_data_load with(distribution=round_robin,heap) as
 select 
    sc.name SchName
     , tbl.name tblName
@@ -32,4 +35,4 @@ select
 from sys.tables tbl
 inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
 
-SELECT * From dbo.table_info_for_data_extract_and_data_load;
+SELECT * From #table_info_for_data_extract_and_data_load;
