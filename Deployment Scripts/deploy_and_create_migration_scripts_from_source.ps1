@@ -232,7 +232,7 @@ param(
                 $copyinto = $row.data_load_statement
                 $dropStatement = $row.DropStatement
                 Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$cetas
-                Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$copyinto
+                Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
             }
 
 
