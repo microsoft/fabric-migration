@@ -23,7 +23,6 @@ CREATE PROCEDURE dbo.sp_create_external_data_source
 
 */
 AS
-SELECT @adls_base_location, @credential_name, @external_data_source_name
 BEGIN TRY
 
     IF EXISTS (SELECT 1 FROM sys.external_data_sources WHERE name = @external_data_source_name)

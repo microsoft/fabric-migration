@@ -24,10 +24,3 @@ EXEC dbo.create_external_file_format;
 -- Create External Data Source
 EXEC dbo.sp_create_external_data_source @adls_base_location = @adls_gen2_location,
         @credential_name ='fabric_migration_credential',@external_data_source_name='fabric_data_migration_ext_data_source';
-
--- -- Create a temporary table to hold the table data in dbo.table_info_for_data_extract;
--- EXEC dbo.create_temp_table_view_to_extract_data;
-
--- -- Generate data extract and data load statements
--- EXEC dbo.generate_data_extract_and_data_load_statements @storage_access_token = @storage_access_token
---         , @external_data_source_base_location = @adls_gen2_location

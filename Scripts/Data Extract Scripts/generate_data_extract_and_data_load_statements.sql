@@ -23,8 +23,9 @@ IF (object_id('tempdb.dbo.#table_info_for_data_extract_and_data_load','U') IS NO
 create table #table_info_for_data_extract_and_data_load with(distribution=round_robin,heap) as
 select 
    sc.name SchName
-    , tbl.name tblName
-    , 'IF (object_id('''+ sc.name + '.migration_' + tbl.name + ''',''U'') IS NOT NULL) DROP TABLE ['+ sc.name + '].[migration_' + tbl.name +'];' + CHAR(13)+CHAR(10) + 'CREATE EXTERNAL TABLE [' + sc.name + '].[migration_' + tbl.name + 
+    , tbl.name objName
+    , 'IF (object_id('''+ sc.name + '.migration_' + tbl.name + ''',''U'') IS NOT NULL) DROP EXTERNAL TABLE ['+ sc.name + '].[migration_' + tbl.name +'];' AS DropStatement
+    , 'CREATE EXTERNAL TABLE [' + sc.name + '].[migration_' + tbl.name + 
         '] WITH (LOCATION = ''/'+sc.name+'/'+tbl.name+'/''' + ',' + 
         ' DATA_SOURCE = fabric_data_migration_ext_data_source,' +
         ' FILE_FORMAT = fabric_data_migration_ext_file_format)' +

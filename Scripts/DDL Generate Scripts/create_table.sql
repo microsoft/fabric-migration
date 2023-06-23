@@ -149,8 +149,11 @@ SELECT  top 1000000000 SchName
 ) a;
 
 IF (object_id('tempdb.dbo.#tbl_FinalScript','U') IS NOT NULL) DROP TABLE #tbl_FinalScript;
-create table #tbl_FinalScript (SchName nvarchar(200), tblName varchar(200), DDLScript varchar(max)) with(distribution=round_robin,heap);
+create table #tbl_FinalScript (SchName nvarchar(200), objName varchar(200), Script varchar(max), DropStatement VARCHAR(1000)) with(distribution=round_robin,heap);
 INSERT INTO #tbl_FinalScript
+
+select SchName,tblName, DDLScript as Script, 'IF (object_id('''+ SchName + '.' + tblName + ''',''U'') IS NOT NULL) DROP TABLE ['+ SchName + '].[' + tblName +'];' as DropStatement
+FROM (
 select SchName,tblName,concat('CREATE TABLE ',SchName,'.',tblName,'('
               ,STRING_AGG (CONVERT(NVARCHAR(max),NewColDef),', ')
               ,')') DDLScript
@@ -199,7 +202,8 @@ SELECT  top 1000000000 SchName
         order by colid
 ) a
 ) b
-where NewConstraintDef is not null;
+where NewConstraintDef is not null
+) c;
 
 select * from #tbl_FinalScript t
 
