@@ -25,6 +25,9 @@ param(
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90
 )
+
+$logpath = "C:\logs\$($([System.Datetime]::Now.ToString("MMddyyyyhhmmssmmm"))).txt"
+Start-Transcript -Path $logpath
 <#
 	.SYNOPSIS
     Run all SQL Scripts in folder in SQLCMD mode, passing in an array of SQLCMD variables if supplied.
@@ -93,18 +96,23 @@ param(
                 Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $SqlCmdFile
             }
 
-            # Extracting DDL
-            $inputQuery = "EXEC dbo.SynapseMigration_ExtractAllDDL"
+            # Extracting Schema
+            $inputQuery = "EXEC dbo.SynapseMigration_ExtractSchemas"
             Write-Host "Running stored procedure: '$inputQuery'"
-            $ddl_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery           
-
+            $schema_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery  
+            
             # Create schema folder
-            foreach($name in $ddl_results | Select-Object  SchName -Unique)
+            New-Item -Path $TargetFolderPath'Schemas' -ItemType Directory
+            foreach($name in $schema_results)
             {
                 $schemaName =  $name.SchName
+                $schemaScript = $row.Script
+                $dropStatement = $row.DropStatement
+
                 if (Test-Path $TargetFolderPath$schemaName) {
                     Remove-Item $TargetFolderPath$schemaName -Recurse
                 }
+                Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value $dropStatement"`r`nGO`r`n"$schemaScript
                 New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
                 New-Item -Path $TargetFolderPath$schemaName'\Tables' -ItemType Directory
                 New-Item -Path $TargetFolderPath$schemaName'\Views' -ItemType Directory
@@ -113,6 +121,13 @@ param(
                 New-Item -Path $TargetFolderPath$schemaName'\External Tables' -ItemType Directory           
                 New-Item -Path $TargetFolderPath$schemaName'\Copy INTO' -ItemType Directory           
             }
+
+            # Extracting DDL
+            $inputQuery = "EXEC dbo.SynapseMigration_ExtractAllDDL"
+            Write-Host "Running stored procedure: '$inputQuery'"
+            $ddl_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery           
+
+            
             
             # Create table scripts
             foreach($row in $ddl_results)
@@ -129,17 +144,6 @@ param(
             Write-Host "Running stored procedure: '$inputQuery'"
             $view_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
 
-            # Create schema folder if it does not exist
-            foreach($name in $view_results | Select-Object  SchName -Unique)
-            {
-                $schemaName =  $name.SchName
-                if (!(Test-Path $TargetFolderPath$schemaName)) {
-                    New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
-                    New-Item -Path $TargetFolderPath$schemaName'\Views' -ItemType Directory
-                }
-                             
-            }
-
             # Create view scripts
             foreach($row in $view_results)
             {
@@ -155,17 +159,6 @@ param(
              Write-Host "Running stored procedure: '$inputQuery'"
              $sp_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
  
-             # Create schema folder if it does not exist
-             foreach($name in $sp_results | Select-Object  SchName -Unique)
-             {
-                 $schemaName =  $name.SchName
-                 if (!(Test-Path $TargetFolderPath$schemaName)) {
-                     New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
-                     New-Item -Path $TargetFolderPath$schemaName'\Stored Procedures' -ItemType Directory 
-                 }
-                              
-             }
- 
              # Create stored procedure scripts
              foreach($row in $sp_results)
              {
@@ -180,17 +173,6 @@ param(
              $inputQuery = "EXEC dbo.SynapseMigration_ExtractAllFunctions"
              Write-Host "Running stored procedure: '$inputQuery'"
              $fn_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
- 
-             # Create schema folder if it does not exist
-             foreach($name in $fn_results | Select-Object  SchName -Unique)
-             {
-                 $schemaName =  $name.SchName
-                 if (!(Test-Path $TargetFolderPath$schemaName)) {
-                     New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
-                     New-Item -Path $TargetFolderPath$schemaName'\Functions' -ItemType Directory
-                 }
-                              
-             }
  
              # Create function scripts
              foreach($row in $fn_results)
@@ -211,18 +193,6 @@ param(
             $inputQuery = "EXEC dbo.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
             Write-Host "Running stored procedure: '$inputQuery'"
             $cetas_copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
-            
-            # Create schema folder if it does not exist
-            foreach($name in $fn_results | Select-Object  SchName -Unique)
-            {
-                $schemaName =  $name.SchName
-                if (!(Test-Path $TargetFolderPath$schemaName)) {
-                    New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
-                    New-Item -Path $TargetFolderPath$schemaName'\External Tables' -ItemType Directory
-                    New-Item -Path $TargetFolderPath$schemaName'\Copy INTO' -ItemType Directory
-                }
-                            
-            }
 
             foreach($row in $cetas_copyinto_results)
             {
@@ -244,3 +214,4 @@ param(
     } catch {
         Write-Error $_;
     }
+    Stop-Transcript
