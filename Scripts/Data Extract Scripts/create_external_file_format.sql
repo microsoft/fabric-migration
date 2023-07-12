@@ -1,11 +1,11 @@
-IF object_id('dbo.create_external_file_format') IS NOT NULL
-    DROP PROCEDURE dbo.create_external_file_format
+IF object_id('migration.create_external_file_format') IS NOT NULL
+    DROP PROCEDURE migration.create_external_file_format
 GO
 
-CREATE PROCEDURE dbo.create_external_file_format
+CREATE PROCEDURE migration.create_external_file_format
 /*
 
-    Name: dbo.create_external_file_format
+    Name: migration.create_external_file_format
     Description: This stored procedure creates external file format. Defaulting to Parquet.
     
     Sample Execution: 

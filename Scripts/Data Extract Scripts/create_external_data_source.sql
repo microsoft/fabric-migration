@@ -1,15 +1,15 @@
-IF object_id('dbo.sp_create_external_data_source') IS NOT NULL
-    DROP PROCEDURE dbo.sp_create_external_data_source
+IF object_id('migration.sp_create_external_data_source') IS NOT NULL
+    DROP PROCEDURE migration.sp_create_external_data_source
 GO
 
-CREATE PROCEDURE dbo.sp_create_external_data_source 
+CREATE PROCEDURE migration.sp_create_external_data_source 
 @adls_base_location VARCHAR(1024),
 @credential_name VARCHAR(100),
 @external_data_source_name VARCHAR(100)
 
 /*
 
-    Name: dbo.sp_create_external_data_source
+    Name: migration.sp_create_external_data_source
     Description: This stored procedure creates exernal data source
     
     Parameters:

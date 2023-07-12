@@ -1,6 +1,6 @@
-IF (object_id(N'SynapseMigration_ExtractAllDDL','P') IS NOT NULL) DROP PROC SynapseMigration_ExtractAllDDL
+IF (object_id(N'migration.SynapseMigration_ExtractAllDDL','P') IS NOT NULL) DROP PROC migration.SynapseMigration_ExtractAllDDL
 GO
-Create PROCEDURE SynapseMigration_ExtractAllDDL as
+Create PROCEDURE migration.SynapseMigration_ExtractAllDDL as
 BEGIN
 /*
     Extract Table Definitions
@@ -110,12 +110,12 @@ IF (object_id('tempdb.dbo.#tbl_Defs','U') IS NOT NULL) DROP TABLE #tbl_Defs
 create table #tbl_Defs with(distribution=round_robin,heap) as
 select SchName
             ,tblName
-            ,colname
+            ,'['+colname+']' as colname
             ,colid
-            ,CASE WHEN type_desc = 'UNIQUE_CONSTRAINT' THEN CONCAT(colname,' ',NewTypeDef, ' ', colnullable,' /*UNIQUE',case when is_enforced=0 THEN ' NOT ENFORCED*/' END)
-                  WHEN type_desc = 'PRIMARY_KEY_CONSTRAINT' THEN CONCAT(colname,' ',NewTypeDef,' ', colnullable,' /*PRIMARY KEY NONCLUSTERED',case when is_enforced=0 THEN ' NOT ENFORCED' END, '*/')
-                  WHEN type_desc = 'DEFAULT_CONSTRAINT' THEN CONCAT(colname,' ',NewTypeDef,' ',colnullable,' /*DEFAULT',definition,'*/')
-             ELSE CONCAT(colname,' ',NewTypeDef,' ',colnullable) end NewColDef
+            ,CASE WHEN type_desc = 'UNIQUE_CONSTRAINT' THEN CONCAT('['+colname+']',' ',NewTypeDef, ' ', colnullable,' /*UNIQUE',case when is_enforced=0 THEN ' NOT ENFORCED*/' END)
+                  WHEN type_desc = 'PRIMARY_KEY_CONSTRAINT' THEN CONCAT('['+colname+']',' ',NewTypeDef,' ', colnullable,' /*PRIMARY KEY NONCLUSTERED',case when is_enforced=0 THEN ' NOT ENFORCED' END, '*/')
+                  WHEN type_desc = 'DEFAULT_CONSTRAINT' THEN CONCAT('['+colname+']',' ',NewTypeDef,' ',colnullable,' /*DEFAULT',definition,'*/')
+             ELSE CONCAT('['+colname+']',' ',NewTypeDef,' ',colnullable) end NewColDef
 from(
 SELECT  top 1000000000 SchName
             ,tblName
@@ -148,15 +148,18 @@ SELECT  top 1000000000 SchName
         order by colid
 ) a;
 
+DECLARE @STR_AGG_Var AS NVARCHAR(MAX)
+SET @STR_AGG_Var = CAST(', ' AS NVARCHAR(MAX))
+
 IF (object_id('tempdb.dbo.#tbl_FinalScript','U') IS NOT NULL) DROP TABLE #tbl_FinalScript;
-create table #tbl_FinalScript (SchName nvarchar(200), objName varchar(200), Script varchar(max), DropStatement VARCHAR(1000)) with(distribution=round_robin,heap);
+create table #tbl_FinalScript (SchName nvarchar(200), objName varchar(200), Script nvarchar(max), DropStatement VARCHAR(1000)) with(distribution=round_robin,heap);
 INSERT INTO #tbl_FinalScript
 
-select SchName,tblName, DDLScript as Script, 'IF (object_id('''+ SchName + '.' + tblName + ''',''U'') IS NOT NULL) DROP TABLE ['+ SchName + '].[' + tblName +'];' as DropStatement
+select SchName,tblName, CAST(DDLScript AS NVARCHAR(MAX)) as Script, 'IF (object_id('''+ SchName + '.' + tblName + ''',''U'') IS NOT NULL) DROP TABLE ['+ SchName + '].[' + tblName +'];' as DropStatement
 FROM (
-select SchName,tblName,concat('CREATE TABLE ',SchName,'.',tblName,'('
-              ,STRING_AGG (CONVERT(NVARCHAR(max),NewColDef),', ')
-              ,')') DDLScript
+select SchName,tblName,CAST(concat(CAST('CREATE TABLE [' AS NVARCHAR(MAX)),CAST(SchName AS NVARCHAR(MAX)),CAST('].[' AS NVARCHAR(MAX)),CAST(tblName AS NVARCHAR(MAX)),
+            CAST('](' AS NVARCHAR(MAX)) ,CAST(STRING_AGG (CONVERT(NVARCHAR(max),NewColDef),', ') AS NVARCHAR(MAX))
+              ,CAST(')' AS NVARCHAR(MAX))) AS NVARCHAR(MAX)) DDLScript
 from #tbl_Defs t
 group by SchName,tblName
 UNION ALL
@@ -173,7 +176,7 @@ select SchName
 from(
 SELECT  top 1000000000 SchName
             ,tblName
-            ,colname
+            ,'['+colname+']' as colname
             ,colid
             ,coltype
             ,case when colnullable = 1 THEN cast('NULL' as varchar) else cast('NOT NULL' as varchar) END colnullable
@@ -205,7 +208,7 @@ SELECT  top 1000000000 SchName
 where NewConstraintDef is not null
 ) c;
 
-select * from #tbl_FinalScript t
+select * from #tbl_FinalScript where schName NOT IN ('INFORMATION_SCHEMA','sys','sysdiag','migration');
 
 END
 -- --Next Steps:

@@ -1,15 +1,15 @@
-IF object_id('dbo.create_master_key_and_scoped_credential') IS NOT NULL
-    DROP PROCEDURE dbo.create_master_key_and_scoped_credential
+IF object_id('migration.create_master_key_and_scoped_credential') IS NOT NULL
+    DROP PROCEDURE migration.create_master_key_and_scoped_credential
 GO
 
-CREATE PROCEDURE dbo.create_master_key_and_scoped_credential
+CREATE PROCEDURE migration.create_master_key_and_scoped_credential
 /*
 
-    Name: dbo.create_master_key_and_scoped_credential
+    Name: migration.create_master_key_and_scoped_credential
     Description: This stored procedure creates master encryption key & database scoped credential
     
     Sample Execution: 
-        EXEC dbo.create_master_key_and_scoped_credential
+        EXEC migration.create_master_key_and_scoped_credential
 
 */
 AS

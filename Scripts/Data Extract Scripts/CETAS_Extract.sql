@@ -1,13 +1,13 @@
-IF object_id('dbo.sp_cetas_extract_script') IS NOT NULL
-    DROP PROCEDURE dbo.sp_cetas_extract_script;
+IF object_id('migration.sp_cetas_extract_script') IS NOT NULL
+    DROP PROCEDURE migration.sp_cetas_extract_script;
 GO
 
-CREATE PROCEDURE dbo.sp_cetas_extract_script
+CREATE PROCEDURE migration.sp_cetas_extract_script
 @adls_gen2_location VARCHAR(1024),
 @storage_access_token VARCHAR(1024)
 /*
 
-    Name: dbo.sp_cetas_extract_script
+    Name: migration.sp_cetas_extract_script
     Description: This stored procedure uses system tables to generate CETAS script for extracting data to a data lake store
     Parameters: 
         @adls_gen2_location - Base storage location of data stored in adls gen2 storage
