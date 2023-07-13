@@ -1,3 +1,12 @@
+<#
+Known Issues
+
+1. tables with sys.sysnames datatypes are not supported
+2. tables with nchar/char/nvarchar/varchar of max is not supported
+3. Limitation - The name of the database should be same in Microsoft Fabric DW for naming consistency used in views. 
+   People often use 3 part naming convention and it may break the deployment
+#>
+
 param(
 
     # If windows, use C:\Data\sqlfiles. if Linux use /home/pvenkat/data/
@@ -8,7 +17,7 @@ param(
     [string]$Server='x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net',
 
     [parameter(Mandatory=$false)]
-    [string]$Database='migrationdb',
+    [string]$Database='testsqlpool',
 
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90
@@ -32,6 +41,28 @@ Start-Transcript -Path $logpath
     if ($env:Processor_Architecture -eq 'x86') {
         Write-Error "The SQLSERVER PowerShell module will not run correctly in when the processor architecture = x86. Please use a 64-bit Azure DevOps agent. See https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/v2-windows?view=azure-devops";
         exit 1;
+    }
+
+    function validate-query
+    {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory=$true, Position=0)]
+            [string] $queryText
+        )
+
+        $connection = New-Object System.Data.SqlClient.SqlConnection
+        $connection.ConnectionString = $connectionString
+        $connection.AccessToken = $accessToken
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandText = $query
+        $result = $command.ExecuteReader()    
+        $table = new-object "System.Data.DataTable"
+
+        $table.Load($result)
+        $connection.Close()
+        return $table
     }
 
     try {
@@ -79,7 +110,7 @@ Start-Transcript -Path $logpath
 
            
             
-            #Write-Host "Creating Schemas in the target database"
+            # Write-Host "Creating Schemas in the target database"
             
             # foreach ($Schema in (Get-ChildItem -Path $SourceFolderPath"Schemas\")) {
             #     Write-Host "Creating Schema: "$SourceFolderPath"Schemas\"$Schema
@@ -89,22 +120,23 @@ Start-Transcript -Path $logpath
             Write-Host "`nExecuting DDL statements on target database"
             foreach($schema in (Get-ChildItem -Path $SourceFolderPath -Exclude "Schemas" -Directory)) {
                 
-                foreach($Table in (Get-ChildItem -Path $Schema"\Tables\")) {
-                    Write-Host "Creating Table: "$Table " in " $(Split-Path -Leaf $Schema)
-                    $path = "$($SourceFolderPath)$($Schema.Name)\Tables\$($Table)"
-                    Write-Host $path
-                    Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path
-                }
+                # foreach($Table in (Get-ChildItem -Path $Schema"\Tables\")) {
+                #     Write-Host "Creating Table: "$Table " in " $(Split-Path -Leaf $Schema)
+                #     $path = "$($SourceFolderPath)$($Schema.Name)\Tables\$($Table)"
+                #     Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path
+                # }
 
                 # foreach($View in (Get-ChildItem -Path $Schema"\Views\")) {
                 #     Write-Host "Creating View: "$View " in " $(Split-Path -Leaf $Schema)
-                #     # Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $View
+                #     $path = "$($SourceFolderPath)$($Schema.Name)\Views\$($View)"
+                #     Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path
                 # }
 
-                # foreach($Sp in (Get-ChildItem -Path $Schema"\Stored Procedures\")) {
-                #     Write-Host "Creating Stored Procedure: "$Sp " in " $(Split-Path -Leaf $Schema)
-                #     # Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $Sp
-                # }
+                foreach($Sp in (Get-ChildItem -Path $Schema"\Stored Procedures\")) {
+                    Write-Host "Creating Stored Procedure: "$Sp " in " $(Split-Path -Leaf $Schema)
+                    $path = "$($SourceFolderPath)$($Schema.Name)\Stored Procedures\$($Sp)"
+                    Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path
+                }
 
                 # foreach($Fnc in (Get-ChildItem -Path $Schema"\Functions\")) {
                 #     Write-Host "Creating Function: "$Fnc " in " $(Split-Path -Leaf $Schema)
