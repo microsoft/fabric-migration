@@ -49,6 +49,7 @@ param(
     [parameter(Mandatory=$false)]
     [string]$systemDacpacLocation = "c:\Users\pvenkat\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
 
+    #dotnet add package Microsoft.SqlServer.DacFx --version 162.1.142-preview
     [parameter(Mandatory=$false)]
     [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.124.2\SqlPackage.exe",
 
