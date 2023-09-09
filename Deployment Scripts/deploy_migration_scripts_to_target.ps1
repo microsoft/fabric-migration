@@ -43,29 +43,75 @@ Start-Transcript -Path $logpath
         exit 1;
     }
 
-    function validate-query
+    function Get-Script
     {
-        [CmdletBinding()]
         param (
-            [Parameter(Mandatory=$true, Position=0)]
-            [string] $queryText
+            [string] $filePath
         )
 
-        $connection = New-Object System.Data.SqlClient.SqlConnection
-        $connection.ConnectionString = $connectionString
-        $connection.AccessToken = $accessToken
-        $connection.Open()
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-        $result = $command.ExecuteReader()    
-        $table = new-object "System.Data.DataTable"
+        $fileContent = Get-Content $filePath | Select-Object -Skip 2
+        return $fileContent
+    }
 
-        $table.Load($result)
-        $connection.Close()
-        return $table
+    function Confirm-Script
+    {
+        param (
+            [string] $queryText
+        )
+        
+        $queryText = $queryText.Replace("'","''")   
+
+        $query = 
+@"
+BEGIN TRY
+    SET PARSEONLY ON;    
+    EXEC('<<REPLACE>>')
+    SET PARSEONLY OFF;
+END TRY
+BEGIN CATCH
+    DECLARE 
+    @ErrorMessage  VARCHAR(8000), 
+    @ErrorSeverity INT, 
+    @ErrorState    INT;
+
+    SELECT 
+        @ErrorMessage = ERROR_MESSAGE(), 
+        @ErrorSeverity = ERROR_SEVERITY(), 
+        @ErrorState = ERROR_STATE();
+    
+    RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+
+END CATCH
+"@
+        $ErrorMessage = ""
+        $query = $query.Replace("<<REPLACE>>", $queryText)
+        try {
+            Write-Host $query
+            Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $query
+        }
+        catch {
+            # Handle the error
+    $err = $_.Exception
+    #There could possibly be multiple inner exceptions but not in this example. 
+    while( $err.InnerException ) 
+        {
+            $err = $err.InnerException
+            #Write-Host "InnerException: $($err.Message)" 
+            $ErrorMessage = $err.Message
+        }
+        
+        }
+        return $ErrorMessage
+
     }
 
     try {
+
+        #Error Log
+        $error_log = New-Object System.Data.DataTable
+        $error_log.Columns.Add("Schema", "System.String") | Out-Null
+        $error_log.Columns.Add("Error", "System.String") | Out-Null
+        $error_log.Columns.Add("ScriptPath", "System.String") | Out-Null
         
         #User Authentication
         Connect-AzAccount
@@ -135,8 +181,37 @@ Start-Transcript -Path $logpath
                 foreach($Sp in (Get-ChildItem -Path $Schema"\Stored Procedures\")) {
                     Write-Host "Creating Stored Procedure: "$Sp " in " $(Split-Path -Leaf $Schema)
                     $path = "$($SourceFolderPath)$($Schema.Name)\Stored Procedures\$($Sp)"
-                    Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path
+                    $fileContent = Get-Script $path                    
+                    $Scriptmsg = Confirm-Script -queryText $fileContent
+                    Write-Host "Error Message: $($Scriptmsg)"
+                    if([string]::IsNullOrEmpty($Scriptmsg)) {
+                        
+                        try {
+                            Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $path 
+                        }
+                        catch {
+                            $nRow = $error_log.NewRow()
+                            $nRow.Schema = $Schema.Name
+                            $nRow.Error = $path
+                            $nRow.ScriptPath = $_.Exception.Message
+                            $error_log.Rows.Add($nRow)
+                        }
+                    } 
+                    else {                        
+                        $nRow = $error_log.NewRow()
+                        $nRow.Schema = $Schema.Name
+                        $nRow.Error = $Scriptmsg
+                        $nRow.ScriptPath = $path
+                        $error_log.Rows.Add($nRow)                        
+                    }
                 }
+
+                # Foreach ($row in $error_log)
+                # {
+                #     Write-Host "Schema: $($row.Schema)"
+                #     Write-Host "Schema: $($row.Error)"
+                #     Write-Host "Schema: $($row.ScriptPath)"
+                # }
 
                 # foreach($Fnc in (Get-ChildItem -Path $Schema"\Functions\")) {
                 #     Write-Host "Creating Function: "$Fnc " in " $(Split-Path -Leaf $Schema)
@@ -144,14 +219,14 @@ Start-Transcript -Path $logpath
                 # }
             }
 
-            # Write-Host "`nCopying data to target database"
-            # foreach($Schema in (Get-ChildItem -Path $SourceFolderPath -Exclude "Schemas" -Directory)) {
+            Write-Host "`nCopying data to target database"
+            foreach($Schema in (Get-ChildItem -Path $SourceFolderPath -Exclude "Schemas" -Directory)) {
                 
-            #     foreach($Table in (Get-ChildItem -Path $Schema"\Copy INTO\")) {
-            #         Write-Host "COPY INTO: "$Table " in " $(Split-Path -Leaf $Schema)
-            #         # Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $Table
-            #     }
-            # }
+                foreach($Table in (Get-ChildItem -Path $Schema"\Copy INTO\")) {
+                    Write-Host "COPY INTO: "$Table " in " $(Split-Path -Leaf $Schema)
+                    # Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $Table
+                }
+            }
 
             Write-Host "==============================================================================";
         } else {

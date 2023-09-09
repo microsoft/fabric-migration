@@ -23,7 +23,39 @@ param(
     [string]$storage_access_token='',
 
     [parameter(Mandatory=$false)]
-    [int]$QueryTimeout = 90
+    [int]$QueryTimeout = 90,
+
+    [parameter(Mandatory=$false)]
+    [bool]$IncludeDropScript = $false,
+
+    [parameter(Mandatory=$false)]
+    [bool]$CreateSQlProject = $true,
+
+    [parameter(Mandatory=$false)]
+    [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
+
+    [parameter(Mandatory=$false)]
+    [bool]$skipViews = $true,
+
+    [parameter(Mandatory=$false)]
+    [bool]$skipSp = $true,
+
+    [parameter(Mandatory=$false)]
+    [bool]$skipfunctions = $true,
+
+    [parameter(Mandatory=$false)]
+    [bool]$skipothers = $true,
+
+    [parameter(Mandatory=$false)]
+    [string]$systemDacpacLocation = "c:\Users\pvenkat\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
+
+    [parameter(Mandatory=$false)]
+    [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.124.2\SqlPackage.exe",
+
+    [parameter(Mandatory=$false)]
+    [string]$connectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-mgswp3izydcebodtz7ugj5urcu.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=dbt-1.5-1.6-test;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+
 )
 
 $logpath = "C:\logs\$($([System.Datetime]::Now.ToString("MMddyyyyhhmmssmmm"))).txt"
@@ -58,7 +90,7 @@ Start-Transcript -Path $logpath
             [string] $query,
 
             [Parameter(Mandatory=$true, Position=2)]
-            [string] $accessToken
+            [string] $accessToken            
         )
 
         $connection = New-Object System.Data.SqlClient.SqlConnection
@@ -148,6 +180,12 @@ Start-Transcript -Path $logpath
             #$schema_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
             $schema_results = execute-query -connectionString $connectionString -query $inputQuery -accessToken $token
             
+            $includeFolderList= @()
+            $includeObjectsList= @()
+            if($CreateSQlProject -eq $true) {
+                $includeFolderList += "Schemas"                
+                $includeFolderList += "dbo\"
+            }
             # Create schema folder
             New-Item -Path $TargetFolderPath'Schemas' -ItemType Directory
             foreach($name in $schema_results)
@@ -162,8 +200,16 @@ Start-Transcript -Path $logpath
                     Remove-Item $TargetFolderPath$schemaName -Recurse
                 }
                 
-                if($schemaName -ne 'dbo') {                    
-                    Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value $dropStatement"`r`nGO`r`n"$createSchemaScript
+                if($schemaName -ne 'dbo') {
+                    if($CreateSQlProject -eq $true) {
+                        $includeFolderList += $schemaName+"\"
+                    }  
+                    if($IncludeDropScript -eq $false) {
+                        Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value $createSchemaScript
+                    } else {
+                        Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value $dropStatement"`r`nGO`r`n"$createSchemaScript
+                    }
+                    
                 } else {
                     Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value "`r`nGO`r`n"
                 }
@@ -184,8 +230,6 @@ Start-Transcript -Path $logpath
             #$ddl_results | Export-csv $TargetFolderPath/"ddl.csv" -NoTypeInformation
             $ddl_results = execute-query -connectionString $connectionString -query $inputQuery -accessToken $token       
 
-            
-            
             # Create table scripts
             foreach($row in $ddl_results)
             {
@@ -193,76 +237,146 @@ Start-Transcript -Path $logpath
                 $schemaName = $row.SchName
                 $ddlScript = $row.Script
                 $dropStatement = $row.DropStatement
-                Set-Content -Path $TargetFolderPath$schemaName'\Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$ddlScript
+                if($IncludeDropScript -eq $false) {
+                Set-Content -Path $TargetFolderPath$schemaName'\Tables\'$tableName'.sql' -Value $ddlScript
+                } else {
+                    Set-Content -Path $TargetFolderPath$schemaName'\Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$ddlScript
+                }
+                $includeObjectsList += $schemaName+'\Tables\'+$tableName+'.sql'
+
             }
             
-            # Extracting Views
-            $inputQuery = "EXEC migration.SynapseMigration_ExtractAllViews"
-            Write-Host "Running stored procedure: '$inputQuery'"
-            $view_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+            if($skipViews -eq $false) {
+                # Extracting Views
+                $inputQuery = "EXEC migration.SynapseMigration_ExtractAllViews"
+                Write-Host "Running stored procedure: '$inputQuery'"
+                $view_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
             
-
-            # Create view scripts
-            foreach($row in $view_results)
-            {
-                $objName = $row.objName
-                $schemaName = $row.SchName
-                $viewScript = $row.Script
-                $dropStatement = $row.DropStatement
-                Set-Content -Path $TargetFolderPath$schemaName'\Views\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$viewScript
+                # Create view scripts
+                foreach($row in $view_results)
+                {
+                    $objName = $row.objName
+                    $schemaName = $row.SchName
+                    $viewScript = $row.Script
+                    $dropStatement = $row.DropStatement
+                    if($IncludeDropScript -eq $false) {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Views\'$objName'.sql' -Value $viewScript
+                    } else {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Views\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$viewScript
+                    }
+                    $includeObjectsList += $schemaName+'\Views\'+$objName+'.sql'
+                }
+            }
+            
+            if($skipSp -eq $false) {
+                # Extracting stored procedures
+                $inputQuery = "EXEC migration.SynapseMigration_ExtractAllSP"
+                Write-Host "Running stored procedure: '$inputQuery'"
+                $sp_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+            
+                # Create stored procedure scripts
+                foreach($row in $sp_results)
+                {
+                    $objName = $row.objName
+                    $schemaName = $row.SchName
+                    $spScript = $row.Script
+                    $dropStatement = $row.DropStatement
+                    if($IncludeDropScript -eq $false) {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Stored Procedures\'$objName'.sql' -Value $spScript
+                    } else {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Stored Procedures\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$spScript
+                    }
+                    $includeObjectsList += $schemaName+'\Stored Procedures\'+$objName+'.sql'
+                }
             }
 
-             # Extracting stored procedures
-             $inputQuery = "EXEC migration.SynapseMigration_ExtractAllSP"
-             Write-Host "Running stored procedure: '$inputQuery'"
-             $sp_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
- 
-             # Create stored procedure scripts
-             foreach($row in $sp_results)
-             {
-                 $objName = $row.objName
-                 $schemaName = $row.SchName
-                 $spScript = $row.Script
-                 $dropStatement = $row.DropStatement
-                 Set-Content -Path $TargetFolderPath$schemaName'\Stored Procedures\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$spScript
-             }
-
-             # Extracting functions
-             $inputQuery = "EXEC migration.SynapseMigration_ExtractAllFunctions"
-             Write-Host "Running stored procedure: '$inputQuery'"
-             $fn_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
- 
-             # Create function scripts
-             foreach($row in $fn_results)
-             {
-                 $objName = $row.objName
-                 $schemaName = $row.SchName
-                 $fnScript = $row.Script
-                 $dropStatement = $row.DropStatement
-                 Set-Content -Path $TargetFolderPath$schemaName'\Functions\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$fnScript
-             }
-
-            # Running data extract script
-            $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
-            Write-Host "Running stored procedure: '$inputQuery'"
-            Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+            if($skipfunctions -eq $false) {
+                # Extracting functions
+                $inputQuery = "EXEC migration.SynapseMigration_ExtractAllFunctions"
+                Write-Host "Running stored procedure: '$inputQuery'"
+                $fn_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+                
+                # Create function scripts
+                foreach($row in $fn_results)
+                {
+                    $objName = $row.objName
+                    $schemaName = $row.SchName
+                    $fnScript = $row.Script
+                    $dropStatement = $row.DropStatement
+                    if($IncludeDropScript -eq $false) {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Functions\'$objName'.sql' -Value $fnScript
+                    } else {
+                        Set-Content -Path $TargetFolderPath$schemaName'\Functions\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$fnScript
+                    }
+                    $includeObjectsList += $schemaName+'\Functions\'+$objName+'.sql'
+                }
+            }
             
-            # Generating data extract script
-            $inputQuery = "EXEC migration.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
-            Write-Host "Running stored procedure: '$inputQuery'"
-            $cetas_copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+            if($skipothers -eq $false) {
+                # Running data extract script
+                $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
+                Write-Host "Running stored procedure: '$inputQuery'"
+                Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+                
+                # Generating data extract script
+                $inputQuery = "EXEC migration.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
+                Write-Host "Running stored procedure: '$inputQuery'"
+                $cetas_copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
 
-            foreach($row in $cetas_copyinto_results)
-            {
-                $tableName = $row.objName
-                $schemaName = $row.SchName
-                $cetas = $row.data_extract_statement
-                $copyinto = $row.data_load_statement
-                $dropStatement = $row.DropStatement
-                Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$cetas
-                Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
+                foreach($row in $cetas_copyinto_results)
+                {
+                    $tableName = $row.objName
+                    $schemaName = $row.SchName
+                    $cetas = $row.data_extract_statement
+                    $copyinto = $row.data_load_statement
+                    $dropStatement = $row.DropStatement
+                    if($IncludeDropScript -eq $false) {
+                        Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $cetas
+                    } else {
+                        Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$cetas
+                    }
+                    Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
+                }
             }
 
+            if($CreateSQlProject -eq $true) {
+
+                $CurrentDirectory = Get-Location
+                $filePath = $CurrentDirectory.Path + '\Deployment Scripts\Resources\sqlproject.xml'
+                $ssdtString =   [XML](Get-Content $filePath)
+
+                $folderIncludeElement = $ssdtString.CreateElement("ItemGroup")
+                $folderIncludeElement.Attributes.RemoveAll()
+                foreach ($item in $includeFolderList) {
+                    $child = $ssdtString.CreateElement("Folder")
+                    $child.SetAttribute("Include",$item)
+                    $folderIncludeElement.AppendChild($child)
+                }
+
+                $ssdtString.Project.AppendChild($folderIncludeElement)
+
+                $objectIncludeElement = $ssdtString.CreateElement("ItemGroup")
+                $objectIncludeElement.Attributes.RemoveAll()
+                foreach ($item in $includeObjectsList) {
+                    $child = $ssdtString.CreateElement("Build")
+                    $child.SetAttribute("Include",$item)
+                    $objectIncludeElement.AppendChild($child)
+                }
+
+                $ssdtString.Project.AppendChild($objectIncludeElement)
+                $ssdtString.save($TargetFolderPath+'dwssdt.sqlproj')
+
+                # $collectionOfArgs = @("C:\Users\pvenkat\test_db_scripts\dwssdt.sqlproj", 
+                # "/target:Clean", "/target:Build")
+                # & $msbuild $collectionOfArgs
+                $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
+                & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
+
+                $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
+                & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
+                 /TargetConnectionString:$connectionString /at:$token                
+            }
+               
 
             Write-Host "==============================================================================";
         } else {
