@@ -131,7 +131,7 @@ SELECT  top 1000000000 SchName
                   when (coltype IN('char','varchar','text','ntext') and colmaxlength = -1) THEN CONCAT(coltype,'(8000)')
                   when (coltype IN('char','varchar','text') and colmaxlength != -1) THEN CONCAT(coltype,'(',colmaxlength,')')
                   when (coltype IN('ntext') and colmaxlength != -1) THEN CONCAT(coltype,'(',colmaxlength/2,')')
-                  
+                  when (coltype IN('sysname')) THEN CONCAT('varchar','(8000)')
                   when (coltype IN('nchar') and colmaxlength = -1) THEN CONCAT('char','(8000)')
                   when (coltype IN('nvarchar') and colmaxlength = -1) THEN CONCAT('varchar','(8000)')
 
@@ -188,7 +188,7 @@ SELECT  top 1000000000 SchName
                   when (coltype IN('char','varchar','text','ntext') and colmaxlength = -1) THEN CONCAT(coltype,'(8000)')
                   when (coltype IN('char','varchar','text') and colmaxlength != -1) THEN CONCAT(coltype,'(',colmaxlength,')')
                   when (coltype IN('ntext') and colmaxlength != -1) THEN CONCAT(coltype,'(',colmaxlength/2,')')
-                  
+                  when (coltype IN('sysname')) THEN CONCAT('varchar','(8000)')
                   when (coltype IN('nchar') and colmaxlength = -1) THEN CONCAT('char','(8000)')
                   when (coltype IN('nvarchar') and colmaxlength = -1) THEN CONCAT('varchar','(8000)')
 
