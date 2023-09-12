@@ -19,7 +19,7 @@
     - Install [Azure Data Studio Insider build](https://azuredatastudio-update.azurewebsites.net/latest/win32-x64/insider)
     - Once installed, install SQL Database Projects extension 1.3.0.
     ![Sql Database Projects 1.3.0](image.png)
-    - Install dotnet SDK if not installed. You can check the installed SDK's. ```dotnet --list-sdks```
+    - Install [dotnet SDK](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-7.0.401-windows-x64-installer) if not installed. You can check the installed SDK's. ```dotnet --list-sdks```
     - Install SQL Package Insider build from [DacFx](https://github.com/microsoft/DacFx) repository.
 * Update other PS1 script parameters such as $systemDacpacLocation, $dotnet, $sqlPackageLocation and $connectionString.
 * With this, this script helps you to extract sql scripts, create SQL Server Database Project targeting Synapse Data Warehouse in Microsoft Fabric and deploy the data warehouse using SQL Package. **Note**: You can use Azure Data Studio to manage database project.
