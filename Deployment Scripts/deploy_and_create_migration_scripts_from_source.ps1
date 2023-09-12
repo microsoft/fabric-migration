@@ -32,6 +32,9 @@ param(
     [bool]$CreateSQlProject = $true,
 
     [parameter(Mandatory=$false)]
+    [bool]$DeploySQlProject = $false,
+
+    [parameter(Mandatory=$false)]
     [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
 
     [parameter(Mandatory=$false)]
@@ -54,7 +57,10 @@ param(
     [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.143.0\SqlPackage.exe",
 
     [parameter(Mandatory=$false)]
-    [string]$targetConnectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=sqlpackage-test1;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    [string]$targetConnectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=sqlpackage-test1;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
+
+    [parameter(Mandatory=$false)]
+    [string]$resourceXmlPath = "C:\Users\pvenkat\source\repos\fabric-migration\Deployment Scripts\Resources\sqlproject.xml"
 
 
 )
@@ -342,9 +348,7 @@ Start-Transcript -Path $logpath
 
             if($CreateSQlProject -eq $true) {
 
-                $CurrentDirectory = Get-Location
-                $filePath = $CurrentDirectory.Path + '\Deployment Scripts\Resources\sqlproject.xml'
-                $ssdtString =   [XML](Get-Content $filePath)
+                $ssdtString =   [XML](Get-Content $resourceXmlPath)
 
                 $folderIncludeElement = $ssdtString.CreateElement("ItemGroup")
                 $folderIncludeElement.Attributes.RemoveAll()
@@ -367,15 +371,14 @@ Start-Transcript -Path $logpath
                 $ssdtString.Project.AppendChild($objectIncludeElement)
                 $ssdtString.save($TargetFolderPath+'dwssdt.sqlproj')
 
-                # $collectionOfArgs = @("C:\Users\pvenkat\test_db_scripts\dwssdt.sqlproj", 
-                # "/target:Clean", "/target:Build")
-                # & $msbuild $collectionOfArgs
-                $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
-                & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
+                if($DeploySQlProject -eq $true){
+                    $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
+                    & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
 
-                $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
-                & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
-                 /TargetConnectionString:$targetConnectionString /at:$token                
+                    $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
+                    & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
+                    /TargetConnectionString:$targetConnectionString /at:$token
+                }               
             }
                
 
