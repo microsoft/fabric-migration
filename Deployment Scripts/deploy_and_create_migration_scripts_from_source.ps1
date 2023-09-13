@@ -1,20 +1,10 @@
 param(
 
-    # If windows, use C:\Data\sqlfiles. if Linux use /home/pvenkat/data/
-    [parameter(Mandatory=$false)]
-    [string]$SqlCmdSciptFolderPath="C:\Users\pvenkat\source\repos\fabric-migration\Scripts\",
-
-    [parameter(Mandatory=$false)]
-    [string]$TargetFolderPath="C:\Users\pvenkat\test_db_scripts\",
-
     [parameter(Mandatory=$false)]
     [string]$Server='pvenkat-test-ws.sql.azuresynapse.net',
 
     [parameter(Mandatory=$false)]
     [string]$Database='testsqlpool',
-
-    [parameter(Mandatory=$false)]
-    [string]$Recursive='true',
 
     [parameter(Mandatory=$false)]
     [string]$adls_gen2_location='abfss://primary@pvenkattestsa.dfs.core.windows.net/migration/',
@@ -32,7 +22,7 @@ param(
     [bool]$CreateSQlProject = $true,
 
     [parameter(Mandatory=$false)]
-    [bool]$DeploySQlProject = $false,
+    [bool]$DeploySQlProject = $true,
 
     [parameter(Mandatory=$false)]
     [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
@@ -57,13 +47,9 @@ param(
     [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.143.0\SqlPackage.exe",
 
     [parameter(Mandatory=$false)]
-    [string]$targetConnectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=sqlpackage-test1;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
-
-    [parameter(Mandatory=$false)]
-    [string]$resourceXmlPath = "C:\Users\pvenkat\source\repos\fabric-migration\Deployment Scripts\Resources\sqlproject.xml"
-
-
+    [string]$targetConnectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=sqlpackage-test1;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 )
+
 
 $logpath = "C:\logs\$($([System.Datetime]::Now.ToString("MMddyyyyhhmmssmmm"))).txt"
 Start-Transcript -Path $logpath
@@ -113,30 +99,37 @@ Start-Transcript -Path $logpath
         $connection.Close()
         return $table
     }
-
+    
     try {
         
-        Remove-Item $TargetFolderPath -Recurse -Force -Confirm:$false
+        #Initializing paths
+        $DeploymentScriptsFolderPath = Split-Path -parent $MyInvocation.MyCommand.Path
+        $DeploymentScriptsFolderPath = $DeploymentScriptsFolderPath +"\"
+        $resourceXmlPath = Join-Path -Path $DeploymentScriptsFolderPath  -ChildPath "Resources" | Join-Path -ChildPath "sqlproject.xml"
+        $MigrationProjectPath = (get-item $DeploymentScriptsFolderPath ).parent.FullName + "\"
+        $SqlCmdScriptFolderPath = Join-Path -Path $MigrationProjectPath  -ChildPath "Scripts"
+        Remove-Item (Join-Path -Path $MigrationProjectPath  -ChildPath "Output") -Recurse -Force -Confirm:$false
+        $TargetFolderPath = $MigrationProjectPath + "Output\SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))\" #Join-Path -Path $MigrationProjectPath  -ChildPath "Output\" | Join-Path -ChildPath "SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))"
+        
+        $targetDir = mkdir $TargetFolderPath
         
         #Setting up connection string
         Connect-AzAccount
         $token = (Get-AzAccessToken -ResourceUrl https://database.windows.net/).Token
         $connectionString = "Server=$Server;Initial Catalog=$Database;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30"
 
-        if (Test-Path -Path $SqlCmdSciptFolderPath)
+        if (Test-Path -Path $SqlCmdScriptFolderPath)
         {
             Write-Host "==============================================================================";
             Write-Host "Calling Invoke-SqlCmd with the following parameters:";
-            Write-Host "Server:                $Server";
-            Write-Host "Database:              $Database";
-            Write-Host "SqlCmdSciptFolderPath: $SqlCmdSciptFolderPath";
-            Write-Host "Recursive:             $Recursive";
-            Write-Host "AuthenticationUser:    $user";
-            Write-Host "TargetFolderPath:      $TargetFolderPath";
-            Write-Host "Adls_gen2_location:    $adls_gen2_location";
+            Write-Host "Source Server:                $Server";
+            Write-Host "Source Database:              $Database";
+            Write-Host "Target Connection string:     $targetConnectionString"
+            Write-Host "TargetFolderPath:             $TargetFolderPath";
             Write-Host "==============================================================================";
             Write-Host ""
 
+            Write-Host "Installing & importing dependecies if not available...."
             # ensure SqlServer module is installed
             $Name = 'SqlServer';
             if (!(Get-Module -ListAvailable -Name $Name)) {
@@ -162,55 +155,36 @@ Start-Transcript -Path $logpath
                 # if module is not loaded
                 Import-Module -Name $Name -MinimumVersion 2.2.0 -DisableNameChecking;
             }
+            Write-Host ""
 
+            Write-Host "Deploying SQL Scripts to extract DDL & DML from Source..."
+            $SqlCmdFiles = Get-ChildItem -Path $SqlCmdScriptFolderPath -Recurse -Include *.sql;
 
-            Write-Host "SQLCMD folder:         $SqlCmdSciptFolderPath";
-            if ($Recursive -eq 'true') {
-                $SqlCmdFiles = Get-ChildItem -Path $SqlCmdSciptFolderPath -Recurse -Include *.sql;
-            } else {
-                $SqlCmdFiles = Get-ChildItem -Path "$SqlCmdSciptFolderPath\*" -Include *.sql;
-            }
-
-            Write-Host "Running SQLCMD file:   $(Split-Path -Leaf "$SqlCmdSciptFolderPath\Create_Schema.sql")";
-            Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile "$SqlCmdSciptFolderPath\Create_Schema.sql"
+            Write-Host "Deploying :   $(Split-Path -Leaf "$SqlCmdScriptFolderPath\Create_Schema.sql")";
+            Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile "$SqlCmdScriptFolderPath\Create_Schema.sql"
             
             # Deploying Migration scripts
             foreach ($SqlCmdFile in $SqlCmdFiles) {
             
-                Write-Host "Running SQLCMD file:   $(Split-Path -Leaf $SqlCmdFile)";
+                Write-Host "Deploying :   $(Split-Path -Leaf $SqlCmdFile)";
                 Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $SqlCmdFile
             }
 
             # Extracting Schema
             $inputQuery = "EXEC migration.SynapseMigration_ExtractSchemas"
-            Write-Host "Running stored procedure: '$inputQuery'"
+            Write-Host "Extracting Schemas from source: '$inputQuery'"
             #$schema_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
             $schema_results = execute-query -connectionString $connectionString -query $inputQuery -accessToken $token
             
-            $includeFolderList= @()
-            $includeObjectsList= @()
-            if($CreateSQlProject -eq $true) {
-                $includeFolderList += "Schemas"                
-                $includeFolderList += "dbo\"
-            }
             # Create schema folder
-            New-Item -Path $TargetFolderPath'Schemas' -ItemType Directory
+            mkdir $TargetFolderPath'Schemas' | Out-Null
             foreach($name in $schema_results)
             {
                 $schemaName =  $name.SchName
                 $createSchemaScript = $name.Script
                 $dropStatement = $name.DropStatement
-
-                print $dropStatement"`r`nGO`r`n"$createSchemaScript
-
-                if (Test-Path $TargetFolderPath$schemaName) {
-                    Remove-Item $TargetFolderPath$schemaName -Recurse
-                }
                 
-                if($schemaName -ne 'dbo') {
-                    if($CreateSQlProject -eq $true) {
-                        $includeFolderList += $schemaName+"\"
-                    }  
+                if($schemaName -ne 'dbo') {                      
                     if($IncludeDropScript -eq $false) {
                         Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value $createSchemaScript
                     } else {
@@ -221,20 +195,18 @@ Start-Transcript -Path $logpath
                     Set-Content -Path $TargetFolderPath'Schemas\'$schemaName'.sql' -Value "`r`nGO`r`n"
                 }
                 
-                New-Item -Path $TargetFolderPath$schemaName -ItemType Directory
-                New-Item -Path $TargetFolderPath$schemaName'\Tables' -ItemType Directory
-                New-Item -Path $TargetFolderPath$schemaName'\Views' -ItemType Directory
-                New-Item -Path $TargetFolderPath$schemaName'\Functions' -ItemType Directory   
-                New-Item -Path $TargetFolderPath$schemaName'\Stored Procedures' -ItemType Directory
-                New-Item -Path $TargetFolderPath$schemaName'\External Tables' -ItemType Directory           
-                New-Item -Path $TargetFolderPath$schemaName'\Copy INTO' -ItemType Directory           
+                mkdir $TargetFolderPath$schemaName | Out-Null
+                mkdir $TargetFolderPath$schemaName'\Tables' | Out-Null
+                mkdir $TargetFolderPath$schemaName'\Views' | Out-Null
+                mkdir $TargetFolderPath$schemaName'\Functions' | Out-Null
+                mkdir $TargetFolderPath$schemaName'\Stored Procedures' | Out-Null
+                mkdir $TargetFolderPath$schemaName'\External Tables' | Out-Null
+                mkdir $TargetFolderPath$schemaName'\Copy INTO' | Out-Null
             }
 
             # Extracting DDL
             $inputQuery = "EXEC migration.SynapseMigration_ExtractAllDDL"
-            Write-Host "Running stored procedure: '$inputQuery'"
-            #$ddl_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
-            #$ddl_results | Export-csv $TargetFolderPath/"ddl.csv" -NoTypeInformation
+            Write-Host "Extracting table definition from source compatible with Fabric DW: '$inputQuery'"
             $ddl_results = execute-query -connectionString $connectionString -query $inputQuery -accessToken $token       
 
             # Create table scripts
@@ -249,14 +221,13 @@ Start-Transcript -Path $logpath
                 } else {
                     Set-Content -Path $TargetFolderPath$schemaName'\Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$ddlScript
                 }
-                $includeObjectsList += $schemaName+'\Tables\'+$tableName+'.sql'
 
             }
             
             if($skipViews -eq $false) {
                 # Extracting Views
                 $inputQuery = "EXEC migration.SynapseMigration_ExtractAllViews"
-                Write-Host "Running stored procedure: '$inputQuery'"
+                Write-Host "Extracting view definition from source: '$inputQuery'"
                 $view_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
             
                 # Create view scripts
@@ -271,14 +242,13 @@ Start-Transcript -Path $logpath
                     } else {
                         Set-Content -Path $TargetFolderPath$schemaName'\Views\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$viewScript
                     }
-                    $includeObjectsList += $schemaName+'\Views\'+$objName+'.sql'
                 }
             }
             
             if($skipSp -eq $false) {
                 # Extracting stored procedures
                 $inputQuery = "EXEC migration.SynapseMigration_ExtractAllSP"
-                Write-Host "Running stored procedure: '$inputQuery'"
+                Write-Host "Extracting stored procedures definition from source: '$inputQuery'"
                 $sp_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
             
                 # Create stored procedure scripts
@@ -293,14 +263,13 @@ Start-Transcript -Path $logpath
                     } else {
                         Set-Content -Path $TargetFolderPath$schemaName'\Stored Procedures\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$spScript
                     }
-                    $includeObjectsList += $schemaName+'\Stored Procedures\'+$objName+'.sql'
                 }
             }
 
             if($skipfunctions -eq $false) {
                 # Extracting functions
                 $inputQuery = "EXEC migration.SynapseMigration_ExtractAllFunctions"
-                Write-Host "Running stored procedure: '$inputQuery'"
+                Write-Host "Extracting function definitions from source: '$inputQuery'"
                 $fn_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
                 
                 # Create function scripts
@@ -315,19 +284,18 @@ Start-Transcript -Path $logpath
                     } else {
                         Set-Content -Path $TargetFolderPath$schemaName'\Functions\'$objName'.sql' -Value $dropStatement"`r`nGO`r`n"$fnScript
                     }
-                    $includeObjectsList += $schemaName+'\Functions\'+$objName+'.sql'
                 }
             }
             
             if($skipothers -eq $false) {
                 # Running data extract script
                 $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
-                Write-Host "Running stored procedure: '$inputQuery'"
+                Write-Host "Generating CETAS for each table: '$inputQuery'"
                 Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
                 
                 # Generating data extract script
                 $inputQuery = "EXEC migration.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
-                Write-Host "Running stored procedure: '$inputQuery'"
+                Write-Host "Generating COPY INTO command for each table: '$inputQuery'"
                 $cetas_copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
 
                 foreach($row in $cetas_copyinto_results)
@@ -345,46 +313,26 @@ Start-Transcript -Path $logpath
                     Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
                 }
             }
+            Write-Host ""
 
-            if($CreateSQlProject -eq $true) {
-
+            if($CreateSQlProject -eq $true) {                
+                Write-Host "Creating a SQL Project of Target type - SqlDwUnifiedDatabaseSchemaProvider"
                 $ssdtString =   [XML](Get-Content $resourceXmlPath)
-
-                $folderIncludeElement = $ssdtString.CreateElement("ItemGroup")
-                $folderIncludeElement.Attributes.RemoveAll()
-                foreach ($item in $includeFolderList) {
-                    $child = $ssdtString.CreateElement("Folder")
-                    $child.SetAttribute("Include",$item)
-                    $folderIncludeElement.AppendChild($child)
-                }
-
-                $ssdtString.Project.AppendChild($folderIncludeElement)
-
-                $objectIncludeElement = $ssdtString.CreateElement("ItemGroup")
-                $objectIncludeElement.Attributes.RemoveAll()
-                foreach ($item in $includeObjectsList) {
-                    $child = $ssdtString.CreateElement("Build")
-                    $child.SetAttribute("Include",$item)
-                    $objectIncludeElement.AppendChild($child)
-                }
-
-                $ssdtString.Project.AppendChild($objectIncludeElement)
                 $ssdtString.save($TargetFolderPath+'dwssdt.sqlproj')
-
+                
                 if($DeploySQlProject -eq $true){
+                    Write-Host "Building DACPAC file"
                     $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
                     & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
-
+                    
+                    Write-Host "Deplying DACPAC file to target"
                     $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
                     & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
                     /TargetConnectionString:$targetConnectionString /at:$token
-                }               
+                }
             }
-               
-
-            Write-Host "==============================================================================";
         } else {
-            Write-Error "SQL Scripts Folder does not exist: $SqlCmdSciptFolderPath";
+            Write-Error "SQL Scripts Folder does not exist: $SqlCmdScriptFolderPath";
             exit 1;
         }
     } catch {
