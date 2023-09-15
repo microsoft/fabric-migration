@@ -28,6 +28,6 @@ select
         ' WITH ( FILE_TYPE = ''PARQUET'', CREDENTIAL=(IDENTITY= ''Storage Account Key'', SECRET = '''+ @storage_access_token + '''))' AS data_load_statement
 
 from sys.tables tbl
-inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
+inner join sys.schemas sc on  tbl.schema_id=sc.schema_id and tbl.is_external = 'false'
 
 SELECT * From #data_load;

@@ -47,7 +47,7 @@ param(
     [string]$targetServerName = "x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net",
 
     [parameter(Mandatory=$false)]
-    [string]$targetDatabase = "sqlpackagetest2",
+    [string]$targetDatabase = "sqlpackagetest6",
     
     [parameter(Mandatory=$false)]
     [bool]$extractDataFromSource = $true,
@@ -122,7 +122,11 @@ Start-Transcript -Path $logpath
         
         #Setting up connection string
         Connect-AzAccount
-        $token = (Get-AzAccessToken -ResourceUrl https://database.windows.net/).Token
+        $token_context = (Get-AzAccessToken -ResourceUrl https://database.windows.net/)
+        $token = $token_context.Token
+
+        $token_expiry_local_time = $token_context.ExpiresOn.LocalDateTime
+
         $connectionString = "Server=$Server;Initial Catalog=$Database;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30"
 
         if (Test-Path -Path $SqlCmdScriptFolderPath)
@@ -329,6 +333,16 @@ Start-Transcript -Path $logpath
                 $extract_errors = @()
                 foreach($row in $cetas_results)
                 {
+                    #Refresh Token if required
+                    if((Get-Date).AddHours(.1) -gt $token_expiry_local_time)
+                    {
+                        $token_context = (Get-AzAccessToken -ResourceUrl https://database.windows.net/)
+                        $token_expiry_local_time = $token_context.ExpiresOn.LocalDateTime
+                        $token = $token_context.Token
+
+                        Write-Host "Refreshing token...."
+                    }
+
                     $tableName = $row.objName
                     $schemaName = $row.SchName
                     $cetas = $row.data_extract_statement
@@ -361,6 +375,16 @@ Start-Transcript -Path $logpath
 
                 foreach($row in $copyinto_results)
                 {
+                    #Refresh Token if required
+                    if((Get-Date).AddHours(.1) -gt $token_expiry_local_time)
+                    {
+                        $token_context = (Get-AzAccessToken -ResourceUrl https://database.windows.net/)
+                        $token_expiry_local_time = $token_context.ExpiresOn.LocalDateTime
+                        $token = $token_context.Token
+
+                        Write-Host "Refreshing token...."
+                    }
+
                     $tableName = $row.objName
                     $schemaName = $row.SchName
                     $copyinto = $row.data_load_statement
@@ -387,5 +411,7 @@ Start-Transcript -Path $logpath
         }
     } catch {
         Write-Error $_;
+    } finally {
+        Clear-AzContext -Scope CurrentUser -Force
     }
     Stop-Transcript

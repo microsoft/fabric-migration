@@ -40,6 +40,6 @@ AS
             ' AS SELECT * FROM [' + + sc.name + '].[' + tbl.name + '];' AS data_extract_statement   
 
     from sys.tables tbl
-    inner join sys.schemas sc on  tbl.schema_id=sc.schema_id
+    inner join sys.schemas sc on  tbl.schema_id=sc.schema_id and tbl.is_external = 'false'
 
     SELECT * From #cetas;
