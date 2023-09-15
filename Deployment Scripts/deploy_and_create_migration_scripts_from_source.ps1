@@ -10,7 +10,7 @@ param(
     [string]$adls_gen2_location='abfss://primary@pvenkattestsa.dfs.core.windows.net/migration/',
 
     [parameter(Mandatory=$false)]
-    [string]$storage_access_token='exC6J/RS6dhlfMm02qmW+ZS9+JLDJdvoLcZrIXbfXgdamWJNgnv+rqW7WIQb9ZwzEeVmXTLtoACE+AStArVdJQ==',
+    [string]$storage_access_token='',
 
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90,
