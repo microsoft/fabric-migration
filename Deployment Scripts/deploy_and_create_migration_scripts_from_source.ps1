@@ -10,7 +10,7 @@ param(
     [string]$adls_gen2_location='abfss://primary@pvenkattestsa.dfs.core.windows.net/migration/',
 
     [parameter(Mandatory=$false)]
-    [string]$storage_access_token='',
+    [string]$storage_access_token='exC6J/RS6dhlfMm02qmW+ZS9+JLDJdvoLcZrIXbfXgdamWJNgnv+rqW7WIQb9ZwzEeVmXTLtoACE+AStArVdJQ==',
 
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90,
@@ -28,17 +28,14 @@ param(
     [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
 
     [parameter(Mandatory=$false)]
-    [bool]$skipViews = $true,
+    [bool]$skipViews = $false,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipSp = $true,
+    [bool]$skipSp = $false,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipfunctions = $true,
-
-    [parameter(Mandatory=$false)]
-    [bool]$skipothers = $true,
-
+    [bool]$skipfunctions = $false,
+    
     [parameter(Mandatory=$false)]
     [string]$systemDacpacLocation = "c:\Users\pvenkat\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
 
@@ -47,7 +44,16 @@ param(
     [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.143.0\SqlPackage.exe",
 
     [parameter(Mandatory=$false)]
-    [string]$targetConnectionString = "Server=x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net;Initial Catalog=sqlpackage-test1;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    [string]$targetServerName = "x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net",
+
+    [parameter(Mandatory=$false)]
+    [string]$targetDatabase = "sqlpackagetest2",
+    
+    [parameter(Mandatory=$false)]
+    [bool]$extractDataFromSource = $true,
+
+    [parameter(Mandatory=$false)]
+    [bool]$exportDataToTarget = $true
 )
 
 
@@ -110,6 +116,7 @@ Start-Transcript -Path $logpath
         $SqlCmdScriptFolderPath = Join-Path -Path $MigrationProjectPath  -ChildPath "Scripts"
         Remove-Item (Join-Path -Path $MigrationProjectPath  -ChildPath "Output") -Recurse -Force -Confirm:$false
         $TargetFolderPath = $MigrationProjectPath + "Output\SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))\" #Join-Path -Path $MigrationProjectPath  -ChildPath "Output\" | Join-Path -ChildPath "SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))"
+        $targetConnectionString = "Server=$targetServerName;Initial Catalog=$targetDatabase;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
         
         $targetDir = mkdir $TargetFolderPath
         
@@ -286,33 +293,6 @@ Start-Transcript -Path $logpath
                     }
                 }
             }
-            
-            if($skipothers -eq $false) {
-                # Running data extract script
-                $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
-                Write-Host "Generating CETAS for each table: '$inputQuery'"
-                Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
-                
-                # Generating data extract script
-                $inputQuery = "EXEC migration.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
-                Write-Host "Generating COPY INTO command for each table: '$inputQuery'"
-                $cetas_copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
-
-                foreach($row in $cetas_copyinto_results)
-                {
-                    $tableName = $row.objName
-                    $schemaName = $row.SchName
-                    $cetas = $row.data_extract_statement
-                    $copyinto = $row.data_load_statement
-                    $dropStatement = $row.DropStatement
-                    if($IncludeDropScript -eq $false) {
-                        Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $cetas
-                    } else {
-                        Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$cetas
-                    }
-                    Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
-                }
-            }
             Write-Host ""
 
             if($CreateSQlProject -eq $true) {                
@@ -321,14 +301,84 @@ Start-Transcript -Path $logpath
                 $ssdtString.save($TargetFolderPath+'dwssdt.sqlproj')
                 
                 if($DeploySQlProject -eq $true){
-                    Write-Host "Building DACPAC file"
-                    $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
-                    & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
+
+                    try {
+                        Write-Host "Building DACPAC file"
+                        $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
+                        & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
+                        
+                        
+                        Write-Host "Deplying DACPAC file to target"
+                        $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
+                        & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
+                        /TargetConnectionString:$targetConnectionString /at:$token
+
+                    } catch {
+                        $string_err = $_ | Out-String
+                        throw $string_err
+                    }
+                }
+            }
+            Write-Host ""
+
+            if($extractDataFromSource -eq $true) {
+                # Running data extract script
+                $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
+                $cetas_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+
+                $extract_errors = @()
+                foreach($row in $cetas_results)
+                {
+                    $tableName = $row.objName
+                    $schemaName = $row.SchName
+                    $cetas = $row.data_extract_statement
+                    $dropStatement = $row.DropStatement
+                    $filePath = $TargetFolderPath+$schemaName+'\External Tables\'+$tableName+'.sql'
+                    Set-Content -Path $TargetFolderPath$schemaName'\External Tables\'$tableName'.sql' -Value $dropStatement"`r`nGO`r`n"$cetas
+
+                    Write-Host "Extracting data - $schemaName.$tableName..."
+                    try {                    
+                    Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -InputFile $filePath
+                    } 
+                    catch {
+                        $string_err = $_ | Out-String
+                        $extract_errors += "$schemaName.$tableName -> $string_err"
+                    }
+                }
+                if($extract_errors.Length -gt 0){
+                    Write-Host "Errors in extracting data to storage account for following tables: " -ForegroundColor Red -BackgroundColor Yellow
+                    Write-Host $extract_errors -ForegroundColor Red -BackgroundColor Yellow
+                }
+            }
+
+            if($exportDataToTarget -eq $true) {
+            
+                # Generating data extract script
+                $inputQuery = "EXEC migration.generate_data_extract_and_data_load_statements @storage_access_token = '$storage_access_token', @external_data_source_base_location = '$adls_gen2_location'"
+                $copyinto_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+
+                $load_errors = @()               
+
+                foreach($row in $copyinto_results)
+                {
+                    $tableName = $row.objName
+                    $schemaName = $row.SchName
+                    $copyinto = $row.data_load_statement
+                    Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
+                    $filePath = $TargetFolderPath+$schemaName+'\Copy INTO\'+$tableName+'.sql'
                     
-                    Write-Host "Deplying DACPAC file to target"
-                    $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
-                    & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
-                    /TargetConnectionString:$targetConnectionString /at:$token
+                    Write-Host "loading $schemaName.$tableName data..."
+                    try {                    
+                        Invoke-Sqlcmd -ServerInstance $targetServerName -Database $targetDatabase -AccessToken $token -InputFile $filePath
+                    } 
+                    catch {
+                        $string_err1 = $_ | Out-String
+                        $load_errors += "$schemaName.$tableName -> $string_err1"
+                    }
+                }
+                if($load_errors.Length -gt 0){
+                    Write-Host "Errors loading data from storage account to target Fabric DW: " -ForegroundColor Red -BackgroundColor Yellow
+                    Write-Host $load_errors -ForegroundColor Red -BackgroundColor Yellow
                 }
             }
         } else {

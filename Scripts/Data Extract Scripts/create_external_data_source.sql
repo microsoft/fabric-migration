@@ -25,20 +25,18 @@ CREATE PROCEDURE migration.sp_create_external_data_source
 AS
 BEGIN TRY
 
-    IF EXISTS (SELECT 1 FROM sys.external_data_sources WHERE name = @external_data_source_name)
+    IF NOT EXISTS (SELECT 1 FROM sys.external_data_sources WHERE name = @external_data_source_name)
     BEGIN
-        print('Dropping '+ @external_data_source_name + '.');
-        DECLARE @drop_extdatasource_string VARCHAR(8000)
-        SET @drop_extdatasource_string =  'DROP EXTERNAL DATA SOURCE ' + @external_data_source_name
-        EXEC(@drop_extdatasource_string);
+        -- print('Dropping '+ @external_data_source_name + '.');
+        -- DECLARE @drop_extdatasource_string VARCHAR(8000)
+        -- SET @drop_extdatasource_string =  'DROP EXTERNAL DATA SOURCE ' + @external_data_source_name
+        -- EXEC(@drop_extdatasource_string);
+        DECLARE @create_extdatasource_string VARCHAR(8000)
+        SET @create_extdatasource_string =     
+            'CREATE EXTERNAL DATA SOURCE '+ @external_data_source_name +' WITH (TYPE = hadoop, LOCATION = ' + '''' + @adls_base_location + '''' + ', CREDENTIAL = ' + @credential_name + ');'
+        EXEC(@create_extdatasource_string);
+        print(@external_data_source_name+ ' is created.');
     END
-
-    DECLARE @create_extdatasource_string VARCHAR(8000)
-    SET @create_extdatasource_string =     
-        'CREATE EXTERNAL DATA SOURCE '+ @external_data_source_name +' WITH (TYPE = hadoop, LOCATION = ' + '''' + @adls_base_location + '''' + ', CREDENTIAL = ' + @credential_name + ');'
-    EXEC(@create_extdatasource_string);
-    print(@external_data_source_name+ ' is created.');
-
 END TRY
 
 BEGIN CATCH
