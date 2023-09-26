@@ -47,7 +47,7 @@ SELECT 'Table Definition','CLUSTERED INDEX'UNION ALL
 SELECT 'Table Definition','NONCLUSTERED INDEX'UNION ALL 
 SELECT 'Table Definition',' IDENTITY'UNION ALL 
 SELECT 'Row Count','ROWCOUNT'
-
+ 
 GO
 --Create Procedure CheckForUnsupportedCode as
 SELECT ss.[name] SchemaName, o.[name] SPName,x.[value] CodeToReview,c.ExprName CodeCategory,c.ExprCode CodeKeyWord
