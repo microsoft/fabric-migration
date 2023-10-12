@@ -1,0 +1,8 @@
+spark.sql.parquet.outputwriter org.apache.spark.sql.execution.datasources.parquet.NativeParquetOutputWriter
+spark.sql.parquet.vorder.enabled true
+spark.sql.parquet.vorder.autoEncoding false
+spark.sql.parquet.vorder.dictionaryPageSize 1073741824
+spark.sql.parquet.native.writer.memory 2147483648
+spark.hadoop.parquet.block.size 1073741824
+spark.microsoft.delta.optimizeWrite.enabled true
+spark.microsoft.delta.optimizeWrite.binSize 1073741824
