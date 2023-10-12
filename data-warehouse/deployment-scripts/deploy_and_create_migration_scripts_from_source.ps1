@@ -10,13 +10,16 @@ param(
     [string]$adls_gen2_location='abfss://primary@pvenkattestsa.dfs.core.windows.net/migration/',
 
     [parameter(Mandatory=$false)]
-    [string]$storage_access_token='',
+    [string]$storage_access_token='exC6J/RS6dhlfMm02qmW+ZS9+JLDJdvoLcZrIXbfXgdamWJNgnv+rqW7WIQb9ZwzEeVmXTLtoACE+AStArVdJQ==',
 
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90,
 
     [parameter(Mandatory=$false)]
     [bool]$IncludeDropScript = $false,
+
+    [parameter(Mandatory=$false)]
+    [bool]$DMLAssessment = $true,
 
     [parameter(Mandatory=$false)]
     [bool]$CreateSQlProject = $true,
@@ -28,13 +31,13 @@ param(
     [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
 
     [parameter(Mandatory=$false)]
-    [bool]$skipViews = $false,
+    [bool]$skipViews = $true,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipSp = $false,
+    [bool]$skipSp = $true,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipfunctions = $false,
+    [bool]$skipfunctions = $true,
     
     [parameter(Mandatory=$false)]
     [string]$systemDacpacLocation = "c:\Users\pvenkat\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
@@ -47,7 +50,7 @@ param(
     [string]$targetServerName = "x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net",
 
     [parameter(Mandatory=$false)]
-    [string]$targetDatabase = "sqlpackagetest6",
+    [string]$targetDatabase = "sqlpkgtest2",
     
     [parameter(Mandatory=$false)]
     [bool]$extractDataFromSource = $true,
@@ -110,12 +113,13 @@ Start-Transcript -Path $logpath
         
         #Initializing paths
         $DeploymentScriptsFolderPath = Split-Path -parent $MyInvocation.MyCommand.Path
-        $DeploymentScriptsFolderPath = $DeploymentScriptsFolderPath +"\"
-        $resourceXmlPath = Join-Path -Path $DeploymentScriptsFolderPath  -ChildPath "Resources" | Join-Path -ChildPath "sqlproject.xml"
+        $DeploymentScriptsFolderPath = $DeploymentScriptsFolderPath +"\"        
+        $resourceXmlPath = Join-Path -Path $DeploymentScriptsFolderPath  -ChildPath "resources" | Join-Path -ChildPath "sqlproject.xml"
         $MigrationProjectPath = (get-item $DeploymentScriptsFolderPath ).parent.FullName + "\"
-        $SqlCmdScriptFolderPath = Join-Path -Path $MigrationProjectPath  -ChildPath "Scripts"
-        Remove-Item (Join-Path -Path $MigrationProjectPath  -ChildPath "Output") -Recurse -Force -Confirm:$false
-        $TargetFolderPath = $MigrationProjectPath + "Output\SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))\" #Join-Path -Path $MigrationProjectPath  -ChildPath "Output\" | Join-Path -ChildPath "SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))"
+        $SqlCmdScriptFolderPath = Join-Path -Path $MigrationProjectPath  -ChildPath "scripts"
+
+        Remove-Item (Join-Path -Path $MigrationProjectPath  -ChildPath "output") -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+        $TargetFolderPath = $MigrationProjectPath + "output\SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))\" #Join-Path -Path $MigrationProjectPath  -ChildPath "Output\" | Join-Path -ChildPath "SSDT_$($([System.Datetime]::Now.ToString("yyyyMMddhhmmss")))"
         $targetConnectionString = "Server=$targetServerName;Initial Catalog=$targetDatabase;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
         
         $targetDir = mkdir $TargetFolderPath
@@ -297,7 +301,38 @@ Start-Transcript -Path $logpath
                     }
                 }
             }
-            Write-Host ""
+            If($DMLAssessment -eq $true) {
+                # Executing DML Assessment Stored Procedure
+                $inputQuery = "EXEC migration.Check_UnsupportedDML"
+                Write-Host "Extracting function definitions from source: '$inputQuery'"
+                $assessment_results = New-Object System.Data.DataTable
+                $assessment_results.Columns.Add("ExprName", "System.String") 
+                $assessment_results.Columns.Add("ExprCode", "System.String")
+                $assessment_results_fromDB = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
+                
+                foreach($result in $assessment_results_fromDB)
+                {
+                    $row = $Datatable.NewRow()
+                    
+                    $row.ExprName = $result.ExprName
+                    $row.ExprCode = $result.ExprCode
+                    $assessment_results.Rows.Add($row)                    
+                }
+
+                if($assessment_results.Rows.Count -gt 0) {                   
+
+                    $html = "<table><tr><td>ExprCode</td><td>ExprName</td></tr>"
+                    foreach ($row in $assessment_results.Rows)
+                    { 
+                        $html += "<tr><td>" + $row[0] + "</td><td>" + $row[1] + "</td></tr>"
+                    }
+                    $html += "</table>"
+                    Write-Host $html
+
+                    break
+                }
+
+            }
 
             if($CreateSQlProject -eq $true) {                
                 Write-Host "Creating a SQL Project of Target type - SqlDwUnifiedDatabaseSchemaProvider"
@@ -310,12 +345,17 @@ Start-Transcript -Path $logpath
                         Write-Host "Building DACPAC file"
                         $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
                         & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
-                        
-                        
-                        Write-Host "Deplying DACPAC file to target"
-                        $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
-                        & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
-                        /TargetConnectionString:$targetConnectionString /at:$token
+
+                        if($LASTEXITCODE -ne 0)
+                        {
+                            Write-Host "Dacpac build failed. Please review and fix errors in database console"
+                            break
+                        } else {
+                            Write-Host "Deploying DACPAC file to target"
+                            $deploymentFolder = $TargetFolderPath+'bin\Debug\dwssdt.dacpac'
+                            & $sqlPackageLocation /Action:Publish /SourceFile:$deploymentFolder `
+                            /TargetConnectionString:$targetConnectionString /at:$token
+                        }
 
                     } catch {
                         $string_err = $_ | Out-String

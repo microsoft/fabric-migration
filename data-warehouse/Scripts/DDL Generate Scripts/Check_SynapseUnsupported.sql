@@ -1,9 +1,12 @@
---set nocount on
---DROP TABLE SQL_Unsupported01
-CREATE TABLE Synapse_Unsupported(ExprName varchar(200),ExprCode varchar(200))
---select * from Synapse_Unsupported
+IF (object_id(N'migration.Check_UnsupportedDML','P') IS NOT NULL) DROP PROC migration.Check_UnsupportedDML
+GO
+Create PROCEDURE migration.Check_UnsupportedDML AS
+BEGIN
 
-INSERT INTO Synapse_Unsupported
+IF (object_id('migration.Synapse_Unsupported','U') IS NOT NULL) DROP TABLE migration.Synapse_Unsupported
+CREATE TABLE migration.Synapse_Unsupported(ExprName varchar(200),ExprCode varchar(200))
+
+INSERT INTO migration.Synapse_Unsupported 
 SELECT 'Triggers','TRIGGER 'UNION ALL 
 SELECT 'XML',' XML 'UNION ALL 
 SELECT 'JSON',' JSON 'UNION ALL 
@@ -40,16 +43,14 @@ SELECT 'FileTable',' FILETABLE'UNION ALL
 SELECT 'Memory Optimized Tables','MEMORY_OPTIMIZED'UNION ALL 
 SELECT 'Full Text Search','FULLTEXT'UNION ALL 
 SELECT 'Row Count','ROWCOUNT'
---ADD checks for: Distribution, Partition, indexes
 
-GO
---Create Procedure CheckForUnsupportedCode as
 SELECT ss.[name], o.[name],x.[value],c.ExprName,c.ExprCode
   FROM sys.sql_modules AS sm
   INNER JOIN sys.objects AS o  ON sm.object_id = o.object_id  
   INNER JOIN sys.schemas AS ss ON o.schema_id = ss.schema_id   
   CROSS APPLY STRING_SPLIT(sm.[definition], char(13)) x
-  INNER JOIN Synapse_Unsupported c on upper(x.value) like Upper(concat('%',c.ExprCode,'%'))
+  INNER JOIN migration.Synapse_Unsupported c on upper(x.value) like Upper(concat('%',c.ExprCode,'%'))
 WHERE o.type='P' and ss.[name] NOT IN ('INFORMATION_SCHEMA','sys','sysdiag','migration')
 group by ss.[name], o.[name],x.[value],c.ExprName,c.ExprCode
 
+END
