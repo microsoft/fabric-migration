@@ -4,6 +4,10 @@ This repository contains scripts and useful information to move your Spark workl
 
 ## Azure Synapse Spark
 
+**Spark pools (incl libraries and configurations)**
+- [Spark Pools (incl. libraries and configurations) migration guidance doc]() [TBC]
+- [Spark Catalog HMS migration scripts](/spark-pools)
+
 **Metadata**
 
 - [Spark Catalog HMS migration guidance doc]() [TBC]
@@ -18,3 +22,5 @@ This repository contains scripts and useful information to move your Spark workl
 
 - [SJD migration guidance doc]() [TBC]
 - [SJD migration scripts](/spark-jobs)
+
+

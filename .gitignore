@@ -3,7 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
-data-engineering/spark-pool-configs/default/
+data-engineering/spark-pools/configs/default/
+data-engineering/spark-pools/configs/v-order/
 
 # User-specific files
 *.rsuser
