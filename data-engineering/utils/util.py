@@ -159,7 +159,7 @@ class Utils:
         else:
             raise RuntimeError(f"SJD '{sjd_name}' creation failed: {response.status_code}: {response.text}")
         
-    def import_sjd_from_json(sjd_name, sjd_json, workspace_id, overwrite=False):
+    def import_sjd_from_json(sjd_name, sjd_json, workspace_id, lakehouse_id, overwrite=False):
 
         executable_file_path = sjd_json["properties"]["jobProperties"]["file"]
         language = sjd_json["properties"]["language"]
@@ -187,7 +187,7 @@ class Utils:
     
         Utils.import_sjd(sjd_name, workload_json, workspace_id, False)
 
-    def import_sjds(output_folder, workspace_id, prefix):
+    def import_sjds(output_folder, workspace_id, lakehouse_id, prefix):
 
         resource_type = "sparkJobDefinitions"
         res_imported = 0
@@ -208,7 +208,7 @@ class Utils:
                         sjd_json = json.load(read_file)
                 file_name_noext = file.split('/')[-1].split('.')[0]
                 sjd_name = f"{prefix}_{file_name_noext}"
-                Utils.import_sjd_from_json(sjd_name, sjd_json, workspace_id, False)
+                Utils.import_sjd_from_json(sjd_name, sjd_json, workspace_id, lakehouse_id, False)
                 res_imported += 1
                 resources_imported[resource_type] = res_imported
 
