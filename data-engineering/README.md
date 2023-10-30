@@ -11,14 +11,14 @@ This repository contains scripts and useful information to move your Spark workl
 **Metadata**
 
 - [Spark Catalog HMS migration guidance doc]() [TBC]
-- [Spark Catalog HMS migration scripts](/spark-metadata/hms)
+- [Spark Catalog HMS migration scripts](/data-engineering/spark-metadata/hms)
 
 **Notebook**
 
 - [Notebook migration guidance doc]() [TBC]
-- [Notebook migration scripts](/spark-notebooks)
+- [Notebook migration scripts]/data-engineering(/spark-notebooks)
 
 **Spark Job Definition (SJD)**
 
 - [SJD migration guidance doc]() [TBC]
-- [SJD migration scripts](/spark-sjd)
+- [SJD migration scripts](/data-engineering/spark-sjd)
