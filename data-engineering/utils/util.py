@@ -58,7 +58,6 @@ class Utils:
         dir_list = os.listdir(artifact_path)
         for file in dir_list:
             file_path = os.path.join(artifact_path, file)
-            print(file_path)
             if(file_path.endswith(".ipynb")):
                 with open(file_path, "r", encoding='utf-8') as read_file:
                     ntbk_json = json.load(read_file)
@@ -75,7 +74,7 @@ class Utils:
         api_endpoint = "api.fabric.microsoft.com"
         pbi_token = mssparkutils.credentials.getToken('https://analysis.windows.net/powerbi/api') 
 
-        print(f"Importing notebook {ntbk_name}...")
+        print(f"Importing notebook '{ntbk_name}'...")
         url = f"https://{api_endpoint}/v1/workspaces/{workspace_id}/items"
 
         json_str = json.dumps(ntbk_json)
@@ -107,17 +106,113 @@ class Utils:
         response = requests.request("POST", url, headers=headers, data=payload)
 
         if response.status_code == 200:
-            print(f"Notebook '{ntbk_name}' created.")
+            print(f">> Notebook '{ntbk_name}' created.")
         else:
             raise RuntimeError(f"Notebook '{ntbk_name}' creation failed: {response.status_code}: {response.text}")
 
-        print(f"Finish import of '{ntbk_name}'")
+        #print(f"Finish import of '{ntbk_name}'")
 
     # SJD utils
 
     def export_sjd(azure_client_id, azure_tenant_id, azure_client_secret, synapse_workspace_name, output_folder):
         resource_type = "sparkJobDefinitions"
         Utils.export_resources(resource_type, azure_client_id, azure_tenant_id, azure_client_secret, synapse_workspace_name, output_folder)
+
+    def import_sjd(sjd_name, sjd_json, workspace_id, overwrite=False):
+
+        api_endpoint = "api.fabric.microsoft.com"
+        pbi_token = mssparkutils.credentials.getToken('https://analysis.windows.net/powerbi/api') 
+
+        print(f"Importing sjd '{sjd_name}'...")
+        url = f"https://{api_endpoint}/v1/workspaces/{workspace_id}/items"
+
+        json_str = json.dumps(sjd_json)
+        json_bytes = json_str.encode('utf-8')
+        base64_encoded_json = base64.b64encode(json_bytes)
+        base64_str = base64_encoded_json.decode('utf-8')
+
+        payload = json.dumps({
+            "type": "SparkJobDefinition",
+            "description": "Imported from Synapse",
+            "displayName": sjd_name,
+            "definition" : {
+                "format": "SparkJobDefinitionV1",
+                "parts" : [
+                    {
+                        "path": "SparkJobDefinitionV1.json",
+                        "payload": base64_str,
+                        "payloadType": "InlineBase64"
+                    }
+                ]
+            }
+        })
+
+        headers = {
+            'Authorization': f'Bearer {pbi_token}',
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.request("POST", url, headers=headers, data=payload)
+
+        if response.status_code == 200:
+            print(f">> SJD '{sjd_name}' created.")
+        else:
+            raise RuntimeError(f"SJD '{sjd_name}' creation failed: {response.status_code}: {response.text}")
+        
+    def import_sjd_from_json(sjd_name, sjd_json, workspace_id, overwrite=False):
+
+        executable_file_path = sjd_json["properties"]["jobProperties"]["file"]
+        language = sjd_json["properties"]["language"]
+        if language == "scala":
+            mainclass = sjd_json["properties"]["jobProperties"]["className"]
+            language = "Scala/Java"
+        else:
+            mainclass = None
+        libs = sjd_json["properties"]["jobProperties"]["jars"]
+        libs = " ".join(libs)
+        args = sjd_json["properties"]["jobProperties"]["args"]
+        args = " ".join(args)
+        
+        workload_json = {
+            "executableFile":executable_file_path,
+            "defaultLakehouseArtifactId":lakehouse_id,
+            "mainClass":mainclass,
+            "additionalLakehouseIds":[],
+            "retryPolicy":None,
+            "commandLineArguments":args,
+            "additionalLibraryUris":libs,
+            "language":language,
+            "environmentArtifactId":None
+        }
+    
+        Utils.import_sjd(sjd_name, workload_json, workspace_id, False)
+
+    def import_sjds(output_folder, workspace_id, prefix):
+
+        resource_type = "sparkJobDefinitions"
+        res_imported = 0
+        resources_imported = {}
+
+        artifact_path = f"{output_folder}/{resource_type}"
+
+        if os.path.exists(artifact_path) == False:
+            print(f"Path where the import artifacts from Synapse are located {artifact_path} does not exist. Exiting ...")
+
+        print(f"Importing Resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
+        dir_list = os.listdir(artifact_path)
+        for file in dir_list:
+            file_path = os.path.join(artifact_path, file)
+            print(file_path)
+            if(file.endswith(".json")):
+                with open(file_path, "r", encoding='utf-8') as read_file:
+                        sjd_json = json.load(read_file)
+                file_name_noext = file.split('/')[-1].split('.')[0]
+                sjd_name = f"{prefix}_{file_name_noext}"
+                Utils.import_sjd_from_json(sjd_name, sjd_json, workspace_id, False)
+                res_imported += 1
+                resources_imported[resource_type] = res_imported
+
+        print(f"Finish importing {resources_imported[resource_type]} items of type: {resource_type}")
 
     # Generic
 
@@ -140,7 +235,7 @@ class Utils:
 
         if response != None and (response.status_code == 202 or response.status_code == 200):
             response_json = response.json()
-            print(f"Getting Individual Resources of type '{resource_type}' from '{synapse_workspace_name}' Synapse workspace...")
+            print(f"Exporting Individual Resources of type '{resource_type}' from '{synapse_workspace_name}' Synapse workspace...")
             if "value" in response_json:
                 response_json = response_json['value']
             elif "items" in response_json:
@@ -150,7 +245,7 @@ class Utils:
                     resource_name = artifact["name"]
                 elif "Name" in artifact:
                     resource_name = artifact["Name"]
-                print(f"Getting Resource '{resource_name}' ...")
+                print(f"Exporting Resource '{resource_name}' ...")
                 resource_url = f"https://{base_uri}/{resource_type}/{resource_name}?api-version={api_version}"
                 resource_response = requests.request("GET", resource_url, headers=headers)
 
@@ -173,7 +268,7 @@ class Utils:
                     resources_exported[resource_type] = res_exported
                     
         else:
-            raise RuntimeError(f"Getting items of type '{resource_type}' failed: {response.status_code}: {response}")
+            raise RuntimeError(f"Exporting items of type '{resource_type}' failed: {response.status_code}: {response}")
 
         print(f"Finish exporting {resources_exported[resource_type]} items of type: {resource_type}")
     
