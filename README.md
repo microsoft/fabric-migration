@@ -6,10 +6,10 @@ This repository contains a collection of scripts and utilities designed to assis
 
 **Data Warehouse**
 
-- [Dedicated Pools to Fabric migration guidance documentation]()
+- [Dedicated Pools to Fabric migration guidance documentation]() [TBC]
 - [Scripts and utils](/data-warehouse)
 
 **Data Engineering (Spark)**
 
-- [Azure Synapse Spark to Fabric migration guidance documentation]()
+- [Azure Synapse Spark to Fabric migration guidance documentation]() [TBC]
 - [Scripts and utils](/data-engineering)

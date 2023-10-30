@@ -6,12 +6,12 @@ This repository contains scripts and useful information to move your Spark workl
 
 **Spark pools (incl libraries and configurations)**
 - [Spark Pools (incl. libraries and configurations) migration guidance doc]() [TBC]
-- [Spark Catalog HMS migration scripts](/spark-pools)
+- [Spark Pools (incl. libraries and configurations scripts]() [TBC]
 
 **Metadata**
 
 - [Spark Catalog HMS migration guidance doc]() [TBC]
-- [Spark Catalog HMS migration scripts](/spark-metadata/hms-migration)
+- [Spark Catalog HMS migration scripts](/spark-metadata/hms)
 
 **Notebook**
 
@@ -21,6 +21,4 @@ This repository contains scripts and useful information to move your Spark workl
 **Spark Job Definition (SJD)**
 
 - [SJD migration guidance doc]() [TBC]
-- [SJD migration scripts](/spark-jobs)
-
-
+- [SJD migration scripts](/spark-sjd)
