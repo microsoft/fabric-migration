@@ -15,13 +15,13 @@ You can list `spark3-client` libraries both in Azure Synapse Spark and Fabric by
 
 ### spark-pool-configurations
 
-You can list default configurations both in Azure Synapse Spark and Fabric by running this in a notebook:
+You can list **default configurations** both in Azure Synapse Spark and Fabric by running this in a notebook:
 
  ```console
     spark.sparkContext.getConf().getAll()
 ```
 
-Relevant properties in Synapse Spark 3.3 vs. Runtime 1.1 in Fabric (custom pools).
+You can see the list of **immutable properties** [here](/data-engineering/spark-pools/configs/inmutable/inmutable-spark-confs.json). **Relevant properties** Azure Synapse Spark (Spark 3.3) vs. Runtime 1.1 in Fabric (custom pools) below. 
 
 
 | Property Name                                       | Azure Synapse Spark   | Fabric Spark  |
