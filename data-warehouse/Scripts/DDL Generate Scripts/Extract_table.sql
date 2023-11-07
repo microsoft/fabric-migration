@@ -201,7 +201,6 @@ SELECT  top 1000000000 SchName
             ,is_enforced
             ,definition
         from #tbl_fin
-        where tblName='MagicTable'
         order by colid
 ) a
 ) b
