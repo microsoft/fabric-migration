@@ -9,14 +9,14 @@ To use the migration scripts see the details below and read guidance doc for eac
 - Export: indicates export from Azure Synapse support
 - Import: indicates import to Fabric support
 
-| Item              | Export     | Import          |
-|-----------------------|------------|-----------------|
-| [Pools](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)                 | Supported  | Unsupported     |
-| [Configurations](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations?branch=release-ignite-fabric)       | Supported  | Unsupported     |
-| [Libraries](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries?branch=release-ignite-fabric)             | Supported  | Unsupported     |
-| [Notebooks](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks?branch=release-ignite-fabric)            | Supported  | Supported ([scripts](spark-notebooks/))      |
-| [Spark job definition](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-job-definition?branch=release-ignite-fabric)  | Supported  | Supported ([scripts](spark-sjd/))      |
-| [HMS metastore](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-hms-metadata?branch=release-ignite-fabric)         | Supported  | Supported ([scripts](spark-catalog/hms/))      |  
+| Item              | Export     | Import          |    |
+|-----------------------|------------|-----------------|-----------------|
+| Pools                 | Supported  | Unsupported     | [doc]((https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)) 
+| Configurations      | Supported  | Unsupported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations?branch=release-ignite-fabric) 
+| Libraries            | Supported  | Unsupported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries?branch=release-ignite-fabric) 
+| Notebooks           | Supported  | Supported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks?branch=release-ignite-fabric) / [scripts](spark-notebooks/)
+| Spark job definition  | Supported  | Supported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-job-definition?branch=release-ignite-fabric) / [scripts](spark-sjd/)
+| HMS metastore(        | Supported  | Supported      |  [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-hms-metadata?branch=release-ignite-fabric) / [scripts](spark-catalog/hms/)
 
  
 > **NOTE:** ADLS Gen2 ACLs, linked services, mount points, workspace users/roles, Key Vault secrets, data and pipelines migration not supported yet. 
