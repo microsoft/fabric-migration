@@ -1,24 +1,24 @@
 # data-engineering
 
-This repository contains scripts and useful information to move your Spark workloads to Fabric.
+This repository contains scripts to move your Spark workloads to Fabric Data Engineering (Spark).
 
-## Azure Synapse Spark
+## From Azure Synapse
 
-**Spark pools (incl libraries and configurations)**
-- [Spark Pools (incl. libraries and configurations) migration guidance doc]() [TBC]
-- [Spark Pools (incl. libraries and configurations) scripts]() [TBC]
+[Migrating from Azure Synapse Spark to Fabric](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-overview?branch=release-ignite-fabric)
 
-**Metadata**
+To use the migration scripts see the details below and read the guidance docs (resource links below).
 
-- [Spark Catalog HMS migration guidance doc]() [TBC]
-- [Spark Catalog HMS migration scripts](/data-engineering/spark-metadata/hms)
+- Export: indicates export from Azure Synapse support
+- Import: indicates import to Fabric support
 
-**Notebook**
+| Resource              | Export     | Import          |
+|-----------------------|------------|-----------------|
+| [Pools](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)                 | Supported  | Unsupported     |
+| [Configurations](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations?branch=release-ignite-fabric)       | Supported  | Unsupported     |
+| [Libraries](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries?branch=release-ignite-fabric)             | Supported  | Unsupported     |
+| [Notebooks](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks?branch=release-ignite-fabric)            | Supported  | Supported (scripts)      |
+| [Spark job definition](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-job-definition?branch=release-ignite-fabric)  | Supported  | Supported (scripts)      |
+| [HMS metastore](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-hms-metadata?branch=release-ignite-fabric)         | Supported  | Supported (scripts)      |  
 
-- [Notebook migration guidance doc]() [TBC]
-- [Notebook migration scripts](/data-engineering/spark-notebooks)
 
-**Spark Job Definition (SJD)**
-
-- [SJD migration guidance doc]() [TBC]
-- [SJD migration scripts](/data-engineering/spark-sjd)
+** Note: ADLS Gen2 ACLs, linked services, mount points, workspace users/roles, Key Vault secrets, data and pipelines migrations not supported. See [differences between Fabric vs. Azure Synapse Spark](https://review.learn.microsoft.com/en-us/fabric/data-engineering/comparison-between-fabric-and-azure-synapse-spark?branch=release-ignite-fabric).
