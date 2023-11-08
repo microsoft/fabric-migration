@@ -2,7 +2,7 @@
 
 This repository contains a collection of scripts and utilities designed to assist with the migration to Fabric, covering various workloads.
 
-### From Azure Synapse PaaS to Fabric
+### From Azure Synapse to Fabric
 
 **Data Warehouse**
 
