@@ -11,7 +11,7 @@ To use the migration scripts see the details below and read guidance doc for eac
 
 | Item              | Export     | Import          |    |
 |-----------------------|------------|-----------------|-----------------|
-| Pools                 | Supported  | Unsupported     | [doc]((https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)) 
+| Pools                 | Supported  | Unsupported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)
 | Configurations      | Supported  | Unsupported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations?branch=release-ignite-fabric) 
 | Libraries            | Supported  | Unsupported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries?branch=release-ignite-fabric) 
 | Notebooks           | Supported  | Supported     | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks?branch=release-ignite-fabric) / [scripts](spark-notebooks/)
