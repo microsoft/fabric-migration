@@ -54,7 +54,7 @@ class Utils:
         if os.path.exists(artifact_path) == False:
             print(f"Path where the import artifacts from Synapse are located {artifact_path} does not exist. Exiting ...")
 
-        print(f"Importing Resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
+        print(f"Importing individual resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
         dir_list = os.listdir(artifact_path)
         for file in dir_list:
             file_path = os.path.join(artifact_path, file)
@@ -74,7 +74,7 @@ class Utils:
         api_endpoint = "api.fabric.microsoft.com"
         pbi_token = mssparkutils.credentials.getToken('https://analysis.windows.net/powerbi/api') 
 
-        print(f"Importing notebook '{ntbk_name}'...")
+        print(f"Importing '{ntbk_name}'...")
         url = f"https://{api_endpoint}/v1/workspaces/{workspace_id}/items"
 
         json_str = json.dumps(ntbk_json)
@@ -110,8 +110,6 @@ class Utils:
         else:
             raise RuntimeError(f"Notebook '{ntbk_name}' creation failed: {response.status_code}: {response.text}")
 
-        #print(f"Finish import of '{ntbk_name}'")
-
     # SJD utils
 
     def export_sjd(azure_client_id, azure_tenant_id, azure_client_secret, synapse_workspace_name, output_folder):
@@ -123,7 +121,7 @@ class Utils:
         api_endpoint = "api.fabric.microsoft.com"
         pbi_token = mssparkutils.credentials.getToken('https://analysis.windows.net/powerbi/api') 
 
-        print(f"Importing sjd '{sjd_name}'...")
+        print(f"Importing '{sjd_name}'...")
         url = f"https://{api_endpoint}/v1/workspaces/{workspace_id}/items"
 
         json_str = json.dumps(sjd_json)
@@ -198,11 +196,10 @@ class Utils:
         if os.path.exists(artifact_path) == False:
             print(f"Path where the import artifacts from Synapse are located {artifact_path} does not exist. Exiting ...")
 
-        print(f"Importing Resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
+        print(f"Importing individual resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
         dir_list = os.listdir(artifact_path)
         for file in dir_list:
             file_path = os.path.join(artifact_path, file)
-            print(file_path)
             if(file.endswith(".json")):
                 with open(file_path, "r", encoding='utf-8') as read_file:
                         sjd_json = json.load(read_file)
@@ -235,7 +232,7 @@ class Utils:
 
         if response != None and (response.status_code == 202 or response.status_code == 200):
             response_json = response.json()
-            print(f"Exporting Individual Resources of type '{resource_type}' from '{synapse_workspace_name}' Synapse workspace...")
+            print(f"Exporting individual resources of type '{resource_type}' from '{synapse_workspace_name}' Azure Synapse workspace...")
             if "value" in response_json:
                 response_json = response_json['value']
             elif "items" in response_json:
@@ -245,7 +242,7 @@ class Utils:
                     resource_name = artifact["name"]
                 elif "Name" in artifact:
                     resource_name = artifact["Name"]
-                print(f"Exporting Resource '{resource_name}' ...")
+                print(f"Exporting '{resource_name}' ...")
                 resource_url = f"https://{base_uri}/{resource_type}/{resource_name}?api-version={api_version}"
                 resource_response = requests.request("GET", resource_url, headers=headers)
 
