@@ -6,24 +6,23 @@ This repository contains scripts to move your Spark workloads to Fabric Data Eng
 
 To use the migration scripts see the details below and read guidance doc for each item (links below).
 
-- Export: indicates export from Azure Synapse support
-- Import: indicates import to Fabric support
+- Export: indicates export support from Azure Synapse
+- Import: indicates import support to Fabric
 
 | Item                 | Export    | Import      |                                                                                                                                                                   |
 |----------------------|-----------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Pools                | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools?branch=release-ignite-fabric)                                  |
-| Configurations       | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations?branch=release-ignite-fabric)                         |
-| Libraries            | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries?branch=release-ignite-fabric)                              |
-| Notebooks            | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks?branch=release-ignite-fabric) / [scripts](spark-notebooks/)      |
-| Spark job definition | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-job-definition?branch=release-ignite-fabric) / [scripts](spark-sjd/) |
-| HMS metastore        | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-hms-metadata?branch=release-ignite-fabric) / [scripts](spark-catalog/hms/) |
-
+| Pools                | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-pools)                                  |
+| Configurations       | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-configurations)                         |
+| Libraries            | Supported | Unsupported | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-libraries)                              |
+| Notebooks            | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-notebooks) / [scripts](spark-notebooks/)      |
+| Spark job definition | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-spark-job-definition) / [scripts](spark-sjd/) |
+| HMS metastore        | Supported | Supported   | [doc](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-hms-metadata) / [scripts](spark-catalog/hms/) |
 
  
 > **NOTE:** ADLS Gen2 ACLs, linked services, mount points, workspace users/roles, Key Vault secrets, data and pipelines migration not supported yet. 
 
-- See [differences between Fabric vs. Azure Synapse Spark](https://review.learn.microsoft.com/en-us/fabric/data-engineering/comparison-between-fabric-and-azure-synapse-spark?branch=release-ignite-fabric)
-- See [migrating from Azure Synapse Spark to Fabric](https://review.learn.microsoft.com/en-us/fabric/data-engineering/migrate-synapse-overview?branch=release-ignite-fabric)
+- See [differences between Fabric vs. Azure Synapse Spark](https://review.learn.microsoft.com/en-us/fabric/data-engineering/comparison-between-fabric-and-azure-synapse-spark)
+- See [migrating from Azure Synapse Spark to Fabric](https://aka.ms/fabric-migrate-synapse-spark)
 
 **How to use import/export scripts**
 
