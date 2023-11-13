@@ -4,12 +4,12 @@ This repository contains a collection of scripts and utilities designed to assis
 
 ## From Azure Synapse to Fabric
 
-**Data Warehouse**
+### Data Warehouse
 
 - [Dedicated Pools to Fabric migration guidance documentation](https://aka.ms/fabric-migrate-synapse-dw)
 - [Scripts and utils](/data-warehouse)
 
-**Data Engineering (Spark)**
+### Data Engineering (Spark)
 
 - [Azure Synapse Spark to Fabric migration guidance documentation](https://aka.ms/fabric-migrate-synapse-spark)
 - [Scripts and utils](/data-engineering)
