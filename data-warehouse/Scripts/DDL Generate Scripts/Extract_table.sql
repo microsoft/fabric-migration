@@ -28,9 +28,9 @@ SELECT ic.[object_id]
       , c.is_nullable
 	  , null definition
   FROM [sys].[index_columns] ic
-  inner join [sys].[key_constraints] kc on kc.parent_object_id=ic.object_id and kc.unique_index_id=ic.index_id
-  inner join [sys].[default_constraints] dc on kc.parent_object_id=dc.parent_object_id 
-  inner join sys.columns c on c.column_id=ic.column_id and c.object_id=ic.object_id
+  left join [sys].[key_constraints] kc on kc.parent_object_id=ic.object_id and kc.unique_index_id=ic.index_id
+  left join [sys].[default_constraints] dc on kc.parent_object_id=dc.parent_object_id 
+  left join sys.columns c on c.column_id=ic.column_id and c.object_id=ic.object_id
 UNION ALL
 SELECT kc.[parent_object_id] object_id
 	  ,kc.[parent_column_id] column_id
@@ -201,7 +201,6 @@ SELECT  top 1000000000 SchName
             ,is_enforced
             ,definition
         from #tbl_fin
-        where tblName='MagicTable'
         order by colid
 ) a
 ) b
