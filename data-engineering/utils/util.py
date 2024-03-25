@@ -105,7 +105,7 @@ class Utils:
 
         response = requests.request("POST", url, headers=headers, data=payload)
 
-        if response.status_code == 200:
+        if response.ok:
             print(f">> Notebook '{ntbk_name}' created.")
         else:
             raise RuntimeError(f"Notebook '{ntbk_name}' creation failed: {response.status_code}: {response.text}")
@@ -152,7 +152,7 @@ class Utils:
 
         response = requests.request("POST", url, headers=headers, data=payload)
 
-        if response.status_code == 200:
+        if response.ok:
             print(f">> SJD '{sjd_name}' created.")
         else:
             raise RuntimeError(f"SJD '{sjd_name}' creation failed: {response.status_code}: {response.text}")
@@ -230,7 +230,7 @@ class Utils:
 
         response = requests.request("GET", url, headers=headers)
 
-        if response != None and (response.status_code == 202 or response.status_code == 200):
+        if response != None and response.ok:
             response_json = response.json()
             print(f"Exporting individual resources of type '{resource_type}' from '{synapse_workspace_name}' Azure Synapse workspace...")
             if "value" in response_json:
@@ -246,7 +246,7 @@ class Utils:
                 resource_url = f"https://{base_uri}/{resource_type}/{resource_name}?api-version={api_version}"
                 resource_response = requests.request("GET", resource_url, headers=headers)
 
-                if resource_response != None and (resource_response.status_code == 202 or resource_response.status_code == 200):
+                if resource_response != None and response.ok:
                     resource_response_json = resource_response.json()
 
                     if (resource_type == "sparkJobDefinitions"):
