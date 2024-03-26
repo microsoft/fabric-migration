@@ -42,8 +42,7 @@ class Utils:
         resource_type = "notebooks"
         Utils.export_resources(resource_type, azure_client_id, azure_tenant_id, azure_client_secret, synapse_workspace_name, output_folder)
 
-    def import_notebooks(output_folder, workspace_id, prefix):
-
+    def import_notebooks(output_folder, workspace_id, prefix, notebook_names=None):
         date = datetime.now().strftime('%Y_%m_%dT%H_%M_%S')
         resource_type = "notebooks"
         res_imported = 0
@@ -51,23 +50,25 @@ class Utils:
 
         artifact_path = f"{output_folder}/{resource_type}"
 
-        if os.path.exists(artifact_path) == False:
+        if not os.path.exists(artifact_path):
             print(f"Path where the import artifacts from Synapse are located {artifact_path} does not exist. Exiting ...")
+            return
 
         print(f"Importing individual resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
-        dir_list = os.listdir(artifact_path)
-        for file in dir_list:
-            file_path = os.path.join(artifact_path, file)
-            if(file_path.endswith(".ipynb")):
+        if notebook_names is None:
+            notebook_names = [name.split('.')[0] for name in os.listdir(artifact_path) if name.endswith(".ipynb")]
+
+        for notebook_name in notebook_names:
+            file_path = os.path.join(artifact_path, f"{notebook_name}.ipynb")
+            if os.path.exists(file_path):
                 with open(file_path, "r", encoding='utf-8') as read_file:
                     ntbk_json = json.load(read_file)
-                file_name_noext = file.split('/')[-1].split('.')[0]
-                ntbk_name = f"{prefix}_{file_name_noext}"
+                ntbk_name = f"{prefix}_{notebook_name}"
                 Utils.import_notebook(ntbk_name, ntbk_json, workspace_id, False)
                 res_imported += 1
-                resources_imported[resource_type] = res_imported
 
-        print(f"Finish importing {resources_imported[resource_type]} items of type: {resource_type}")
+        resources_imported[resource_type] = res_imported
+        print(f"Finish importing {res_imported} items of type: {resource_type}")
         
     def import_notebook(ntbk_name, ntbk_json, workspace_id, overwrite=False):
 
@@ -185,31 +186,32 @@ class Utils:
     
         Utils.import_sjd(sjd_name, workload_json, workspace_id, False)
 
-    def import_sjds(output_folder, workspace_id, lakehouse_id, prefix):
-
+    def import_sjds(output_folder, workspace_id, lakehouse_id, prefix, sjd_names=None):
         resource_type = "sparkJobDefinitions"
         res_imported = 0
         resources_imported = {}
 
         artifact_path = f"{output_folder}/{resource_type}"
 
-        if os.path.exists(artifact_path) == False:
+        if not os.path.exists(artifact_path):
             print(f"Path where the import artifacts from Synapse are located {artifact_path} does not exist. Exiting ...")
+            return
 
         print(f"Importing individual resources of type '{resource_type}' into Fabric workspace '{workspace_id}'...")
-        dir_list = os.listdir(artifact_path)
-        for file in dir_list:
-            file_path = os.path.join(artifact_path, file)
-            if(file.endswith(".json")):
-                with open(file_path, "r", encoding='utf-8') as read_file:
-                        sjd_json = json.load(read_file)
-                file_name_noext = file.split('/')[-1].split('.')[0]
-                sjd_name = f"{prefix}_{file_name_noext}"
-                Utils.import_sjd_from_json(sjd_name, sjd_json, workspace_id, lakehouse_id, False)
-                res_imported += 1
-                resources_imported[resource_type] = res_imported
+        if sjd_names is None:
+            sjd_names = [name.split('.')[0] for name in os.listdir(artifact_path) if name.endswith(".json")]
 
-        print(f"Finish importing {resources_imported[resource_type]} items of type: {resource_type}")
+        for sjd_name in sjd_names:
+            file_path = os.path.join(artifact_path, f"{sjd_name}.json")
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding='utf-8') as read_file:
+                    sjd_json = json.load(read_file)
+                full_sjd_name = f"{prefix}_{sjd_name}"
+                Utils.import_sjd_from_json(full_sjd_name, sjd_json, workspace_id, lakehouse_id, False)
+                res_imported += 1
+
+        resources_imported[resource_type] = res_imported
+        print(f"Finish importing {res_imported} items of type: {resource_type}")
 
     # Generic
 
