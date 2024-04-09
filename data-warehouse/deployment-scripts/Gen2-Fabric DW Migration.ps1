@@ -1,16 +1,16 @@
 param(
 
     [parameter(Mandatory=$false)]
-    [string]$Server='pvenkat-test-ws.sql.azuresynapse.net',
+    [string]$storage_access_token='<insert storage token>',
 
     [parameter(Mandatory=$false)]
-    [string]$Database='testsqlpool',
+    [string]$Server='<synapse dedicated sql pool server name>.sql.azuresynapse.net',
 
     [parameter(Mandatory=$false)]
-    [string]$adls_gen2_location='abfss://primary@pvenkattestsa.dfs.core.windows.net/migration/',
+    [string]$Database='<database name>',     
 
     [parameter(Mandatory=$false)]
-    [string]$storage_access_token='',
+    [string]$adls_gen2_location='abfss://<storage container>@<Storage account>.dfs.core.windows.net/<folder>/',
 
     [parameter(Mandatory=$false)]
     [int]$QueryTimeout = 90,
@@ -31,26 +31,26 @@ param(
     [string]$dotnet = 'C:\Program Files\dotnet\dotnet.exe',
 
     [parameter(Mandatory=$false)]
-    [bool]$skipViews = $true,
+    [bool]$skipViews = $false,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipSp = $true,
+    [bool]$skipSp = $false,
 
     [parameter(Mandatory=$false)]
-    [bool]$skipfunctions = $true,
+    [bool]$skipfunctions = $false,
     
     [parameter(Mandatory=$false)]
-    [string]$systemDacpacLocation = "c:\Users\pvenkat\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
+    [string]$systemDacpacLocation = "c:\Users\<your user name>\.azuredatastudio-insiders\extensions\microsoft.sql-database-projects-1.3.0\BuildDirectory",
 
     #dotnet add package Microsoft.SqlServer.DacFx --version 162.1.142-preview
     [parameter(Mandatory=$false)]
-    [string]$sqlPackageLocation = "C:\Users\pvenkat\Downloads\sqlpackage-win7-x64-en-162.1.143.0\SqlPackage.exe",
+    [string]$sqlPackageLocation = "C:\Users\<your user name>\Downloads\sqlpackage-win7-x64-en\SqlPackage.exe",
 
     [parameter(Mandatory=$false)]
-    [string]$targetServerName = "x6eps4xrq2xudenlfv6naeo3i4-bmmuvve2hnru3anhfqidprgjai.msit-datawarehouse.pbidedicated.windows.net",
+    [string]$targetServerName = "<fabric sql analytics endpoint>.fabric.microsoft.com",
 
     [parameter(Mandatory=$false)]
-    [string]$targetDatabase = "sqlpkgtest2",
+    [string]$targetDatabase = "<fabric database>",
     
     [parameter(Mandatory=$false)]
     [bool]$extractDataFromSource = $true,
@@ -60,7 +60,7 @@ param(
 )
 
 
-$logpath = "C:\logs\$($([System.Datetime]::Now.ToString("MMddyyyyhhmmssmmm"))).txt"
+$logpath = ".\$($([System.Datetime]::Now.ToString("MMddyyyyhhmmssmmm"))).txt"
 Start-Transcript -Path $logpath
 
 <#
@@ -126,6 +126,8 @@ Start-Transcript -Path $logpath
         
         #Setting up connection string
         Connect-AzAccount
+        # You may need to add subscription and tenant, if you have many
+        # Connect-AzAccount -Subscription "<add subscription>" -Tenant  "<entra tenant>"
         $token_context = (Get-AzAccessToken -ResourceUrl https://database.windows.net/)
         $token = $token_context.Token
 
@@ -283,6 +285,7 @@ Start-Transcript -Path $logpath
 
             if($skipfunctions -eq $false) {
                 # Extracting functions
+ 		        Write-Host "Extracting functions" 
                 $inputQuery = "EXEC migration.SynapseMigration_ExtractAllFunctions"
                 Write-Host "Extracting function definitions from source: '$inputQuery'"
                 $fn_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
@@ -291,6 +294,7 @@ Start-Transcript -Path $logpath
                 foreach($row in $fn_results)
                 {
                     $objName = $row.objName
+  		            Write-Host "Extracting function $objName"
                     $schemaName = $row.SchName
                     $fnScript = $row.Script
                     $dropStatement = $row.DropStatement
@@ -306,30 +310,50 @@ Start-Transcript -Path $logpath
                 $inputQuery = "EXEC migration.Check_UnsupportedDML"
                 Write-Host "Extracting function definitions from source: '$inputQuery'"
                 $assessment_results = New-Object System.Data.DataTable
+		        $assessment_results.Columns.Add("schema_name", "System.String")
+		        $assessment_results.Columns.Add("object_name", "System.String")
+		        $assessment_results.Columns.Add("value", "System.String")
                 $assessment_results.Columns.Add("ExprName", "System.String") 
                 $assessment_results.Columns.Add("ExprCode", "System.String")
+		        $assessment_results.Columns.Add("type_desc", "System.String")
+		        # Write-Host "invoke" 
                 $assessment_results_fromDB = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
-                
+                #  Write-Host "After invoke" 
                 foreach($result in $assessment_results_fromDB)
                 {
-                    $row = $Datatable.NewRow()
-                    
+                    # Write-Host "adding  new row"  
+                    $row = $assessment_results.NewRow()
+	  	            $row.schema_name = $result.schema_name
+                    $row.object_name = $result.name
+		            $row.value = $result.value
                     $row.ExprName = $result.ExprName
                     $row.ExprCode = $result.ExprCode
-                    $assessment_results.Rows.Add($row)                    
+			        $row.type_desc = $result.type_desc
+                    $assessment_results.Rows.Add($row)   
+                    # Write-Host "saving  row"                 
                 }
 
+	            #	Write-Host "building report part 1"  
                 if($assessment_results.Rows.Count -gt 0) {                   
-
-                    $html = "<table><tr><td>ExprCode</td><td>ExprName</td></tr>"
+                    #	Write-Host "building report"  
+                    $html = "<html><head>Assessment Report</head><table>"
+                    $html += "<tr><td>Schema</td><td>Object Name</td>"
+                    $html += "<td>Value</td><td>ExprName</td>"
+                    $html += "<td>Type</td><td>ExprCode</td></tr>"
                     foreach ($row in $assessment_results.Rows)
                     { 
-                        $html += "<tr><td>" + $row[0] + "</td><td>" + $row[1] + "</td></tr>"
+                        $html += "<tr><td>" + $row[0] + "</td><td>" + $row[1] + "</td>"
+                        $html += "<td>" + $row[2] + "</td><td>" + $row[3] + "</td>"
+                        $html += "<td>" + $row[4] + "</td><td>" + $row[5] + "</td></tr>"
                     }
-                    $html += "</table>"
+                    $html += "</table></html>"
                     Write-Host $html
 
-                    break
+		            $html | Out-File -FilePath "assessment.html" -Encoding utf8
+
+			        #Write-Host "write html"  
+
+                   # break
                 }
 
             }
@@ -343,8 +367,9 @@ Start-Transcript -Path $logpath
 
                     try {
                         Write-Host "Building DACPAC file"
+                        # Added for quiet build --property WarningLevel=0 /clp:ErrorsOnly
                         $buildFolder = $TargetFolderPath+'dwssdt.sqlproj'
-                        & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation
+                        & $dotnet build $buildFolder /p:NetCoreBuild=true /p:SystemDacpacsLocation=$systemDacpacLocation --property WarningLevel=0 /clp:ErrorsOnly
 
                         if($LASTEXITCODE -ne 0)
                         {
@@ -367,6 +392,7 @@ Start-Transcript -Path $logpath
 
             if($extractDataFromSource -eq $true) {
                 # Running data extract script
+  		        Write-Host "Extracting data"
                 $inputQuery = "EXEC migration.sp_cetas_extract_script @adls_gen2_location='$adls_gen2_location', @storage_access_token = '$storage_access_token'"
                 $cetas_results = Invoke-Sqlcmd -ServerInstance $Server -Database $Database -AccessToken $token -Query $inputQuery
 
@@ -431,6 +457,7 @@ Start-Transcript -Path $logpath
                     Set-Content -Path $TargetFolderPath$schemaName'\Copy INTO\'$tableName'.sql' -Value $copyinto
                     $filePath = $TargetFolderPath+$schemaName+'\Copy INTO\'+$tableName+'.sql'
                     
+ 			        Write-Host $filePath
                     Write-Host "loading $schemaName.$tableName data..."
                     try {                    
                         Invoke-Sqlcmd -ServerInstance $targetServerName -Database $targetDatabase -AccessToken $token -InputFile $filePath

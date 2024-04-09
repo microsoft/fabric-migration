@@ -20,14 +20,22 @@ AS
 IF (object_id('tempdb.dbo.#data_load','U') IS NOT NULL) 
     DROP TABLE #data_load
 
+-- MPM: I found I would get an error, and I wanted to the process to carry on through errors, hence the try catch 
 create table #data_load with(distribution=round_robin,heap) as
 select 
    sc.name SchName
     , tbl.name objName
-    , 'COPY INTO [' + + sc.name + '].[' + tbl.name + '] FROM ''' + @external_data_source_base_location + ''+sc.name+'/'+tbl.name+'/''' +
-        ' WITH ( FILE_TYPE = ''PARQUET'', CREDENTIAL=(IDENTITY= ''Storage Account Key'', SECRET = '''+ @storage_access_token + '''))' AS data_load_statement
+    , 'BEGIN TRY 
+			COPY INTO [' + + sc.name + '].[' + tbl.name + '] FROM ''' + @external_data_source_base_location + ''+sc.name+'/'+tbl.name+'/''' +
+        ' WITH ( FILE_TYPE = ''PARQUET'', CREDENTIAL=(IDENTITY= ''Storage Account Key'', SECRET = '''+ @storage_access_token + '''))
+		END TRY
+		BEGIN CATCH
+			-- do nothing
+		END CATCH
+		' AS data_load_statement
 
 from sys.tables tbl
 inner join sys.schemas sc on  tbl.schema_id=sc.schema_id and tbl.is_external = 'false'
+AND sc.name !='migration'
 
 SELECT * From #data_load;

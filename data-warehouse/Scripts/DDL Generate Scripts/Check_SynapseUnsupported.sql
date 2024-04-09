@@ -1,3 +1,6 @@
+--exec migration.Check_UnsupportedDML
+
+
 IF (object_id(N'migration.Check_UnsupportedDML','P') IS NOT NULL) DROP PROC migration.Check_UnsupportedDML
 GO
 Create PROCEDURE migration.Check_UnsupportedDML AS
@@ -8,7 +11,7 @@ CREATE TABLE migration.Synapse_Unsupported(ExprName varchar(200),ExprCode varcha
 
 INSERT INTO migration.Synapse_Unsupported 
 SELECT 'Triggers','TRIGGER 'UNION ALL 
-SELECT 'XML',' XML 'UNION ALL 
+SELECT 'XML',' XML'UNION ALL 
 SELECT 'JSON',' JSON 'UNION ALL 
 SELECT 'MATCH',' MATCH'UNION ALL 
 SELECT 'Cursor',' CURSOR 'UNION ALL 
@@ -44,13 +47,22 @@ SELECT 'Memory Optimized Tables','MEMORY_OPTIMIZED'UNION ALL
 SELECT 'Full Text Search','FULLTEXT'UNION ALL 
 SELECT 'Row Count','ROWCOUNT'
 
-SELECT ss.[name], o.[name],x.[value],c.ExprName,c.ExprCode
+SELECT ss.[name] as [schema_name], 
+		o.[name],
+		x.[value],
+		c.ExprName,
+		c.ExprCode,
+		o.type_desc
   FROM sys.sql_modules AS sm
   INNER JOIN sys.objects AS o  ON sm.object_id = o.object_id  
   INNER JOIN sys.schemas AS ss ON o.schema_id = ss.schema_id   
   CROSS APPLY STRING_SPLIT(sm.[definition], char(13)) x
-  INNER JOIN migration.Synapse_Unsupported c on upper(x.value) like Upper(concat('%',c.ExprCode,'%'))
-WHERE o.type='P' and ss.[name] NOT IN ('INFORMATION_SCHEMA','sys','sysdiag','migration')
-group by ss.[name], o.[name],x.[value],c.ExprName,c.ExprCode
+  INNER JOIN migration.Synapse_Unsupported c on upper(x.value) like Upper(concat('%',c.ExprCode,'%')) 
+WHERE --o.type='P' -- include the stored procs
+--and 
+ss.[name] NOT IN ('INFORMATION_SCHEMA','sys','sysdiag','migration')
+group by ss.[name], o.[name],x.[value],c.ExprName,c.ExprCode,o.type_desc
 
 END
+
+

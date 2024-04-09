@@ -41,5 +41,13 @@ AS
 
     from sys.tables tbl
     inner join sys.schemas sc on  tbl.schema_id=sc.schema_id and tbl.is_external = 'false'
+	AND sc.name !='migration'
+    -- dont extract the migration schema, i.e. all this new code to help with migration
 
     SELECT * From #cetas;
+
+
+
+
+
+	
